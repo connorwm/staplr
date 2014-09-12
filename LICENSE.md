@@ -1,0 +1,2 @@
+This project is not published for redistribution or for SIGNIFICANT derivative works (modifying the codebase to get it to work on your system is the maximum). However, if you are interested in working on the project please do not hesitate to send me a message on my GitHub account, connorwm. 
+You are not allowed to use this code for any commercial works. If you would like to run it as is then feel free. However, as stated in the readme, there are some minor changes that will need to be made.
