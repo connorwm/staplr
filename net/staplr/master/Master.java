@@ -47,13 +47,6 @@ public class Master implements Runnable
 		
 		if(s_settings.loaded())
 		{
-			// TODO Get these constants out of here
-//			s_settings.map_databaseAuth.get("feeds").set(DatabaseAuth.Properties.password, "ruf997");
-//			s_settings.map_databaseAuth.get("entries").set(DatabaseAuth.Properties.password, "ruf997");		
-//			s_settings.map_databaseAuth.get("statistics").set(DatabaseAuth.Properties.password, "ruf997");
-//			s_settings.map_databaseAuth.get("service").set(DatabaseAuth.Properties.password, "ruf997");
-//			s_settings.map_databaseAuth.get("associations").set(DatabaseAuth.Properties.password, "18241");
-			
 			dx_executor = new DatabaseExecutor(s_settings, l_main);
 			f_feeds = new Feeds(s_settings, dx_executor, l_main);
 			c_communication = new Communication(s_settings, Integer.valueOf((String)s_settings.get(Setting.servicePort)), Integer.valueOf((String)s_settings.get(Setting.masterCommunicationPort)), l_main, f_feeds);
