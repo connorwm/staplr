@@ -60,6 +60,7 @@ public class Communication implements Runnable
 	public void joinMasters()
 	{
 		MessageExecutor mx_executor = null;
+		Message msg_sync = new Message(Message.Type.Request, Message.Value.Sync);
 		lh_communication.write("Attempting to join masters...");
 		
 		for(int i_masterIndex = 0; i_masterIndex < s_settings.c_credentials.size(); i_masterIndex++)
@@ -70,7 +71,6 @@ public class Communication implements Runnable
 			if(mx_executor != null)
 			{
 				lh_communication.write("\tConnection established; sending sync request");
-				Message msg_sync = new Message(Message.Type.Request, Message.Value.Sync);
 				mx_executor.send(msg_sync);
 				
 				break;
