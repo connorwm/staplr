@@ -140,87 +140,16 @@ public class Downloader implements ErrorProne
 		} catch (IOException excep_io) {
 			lastError = new Error("con_connection", Error.Type.Receive, excep_io.toString());
 			return false;
-		} finally {
-			//System.out.println("\tGot Content");
-			
+		} finally {			
 			if(str_rawDocument == null) {
-				//System.out.println("\tBut its null");
 				return false;
 			}
 			
-			//System.out.println("First Line: '"+str_rawDocument.substring(0, str_rawDocument.indexOf('\n')));
-			
-			// Remove BOM if present
-			// If not removed the XML parser will throw an error and not parse
+			// Get to start of XML document
 			if(!str_rawDocument.startsWith("<") && str_rawDocument.contains("<"))
 			{
 				str_rawDocument = str_rawDocument.substring(str_rawDocument.indexOf("<"));
 			}
-			
-			/*
-			String str_encoding = con_connection.getContentEncoding();
-			System.out.println("\t"+str_encoding);
-			
-			if(str_encoding == null)
-			{
-				System.out.println("Encoding is null");
-				str_encoding = con_connection.getHeaderField("Content-Encoding");
-				Map<String,List<String>> headers = con_connection.getHeaderFields();
-				
-				
-				System.out.println("\t\t"+str_encoding);
-				for(int headerIndex = 0; headerIndex < headers.size(); headerIndex++)
-				{
-					System.out.println("\t\t"+headers.keySet().toArray()[headerIndex]);
-					for(int headerValueIndex = 0; headerValueIndex < headers.get(headers.keySet().toArray()[headerIndex]).size(); headerValueIndex++)
-					{
-						System.out.println("\t\t\t"+headers.get(headers.keySet().toArray()[headerIndex]).get(headerValueIndex));
-					}
-				}
-				
-				try{
-					List<String> str_rawContentTypes = headers.get("Content-Type");
-					
-					for(int contentTypeIndex = 0; contentTypeIndex < str_rawContentTypes.size(); contentTypeIndex++)
-					{
-						String str_contentTypeRaw = str_rawContentTypes.get(contentTypeIndex);
-						
-						if(str_contentTypeRaw.contains("charset"))
-						{
-							try{
-								System.out.println("Going to try it on '"+str_contentTypeRaw+"'");
-								
-								str_encoding = str_contentTypeRaw.substring(str_contentTypeRaw.indexOf("=")+1);
-						
-								System.out.println("Result: '"+str_encoding+"'");
-							} catch (Exception e) {
-								System.out.println("ERROR: '=' not found in Content-Type's header");
-								e.printStackTrace();
-								break;
-							}
-						}
-					}
-				} catch (Exception e) {
-					System.out.println("ERROR: Unable to find Content-Type header in response");
-					e.printStackTrace();
-				}
-			}
-			
-			if(str_encoding != null)
-			{
-				str_encoding = str_encoding.toUpperCase();
-				
-				if(str_encoding.equals("UTF-8"))
-				{
-					System.out.println("Substring dat bitch");
-					System.out.println("'"+str_rawDocument+"'");
-					str_rawDocument = str_rawDocument.substring(4); // The BOM for UTF-8 shows up as null in Java. So remove that word!
-					
-					System.out.println("'"+str_rawDocument.substring(0, (int)str_rawDocument.length()/4)+"'");
-				}
-			} else if (str_rawDocument.startsWith("null")) {
-				System.out.println("What to do: '"+str_rawDocument+"'");
-			}*/
 		}
 		
 		
