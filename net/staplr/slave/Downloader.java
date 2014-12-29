@@ -94,7 +94,7 @@ public class Downloader implements ErrorProne
 	
 	private boolean connect()
 	{
-		try{
+		try {
 			con_connection.connect();
 		} catch (IOException e) {
 			lastError = new Error("con_connection", Error.Type.Connection, e.toString());
@@ -112,7 +112,7 @@ public class Downloader implements ErrorProne
 				{
 					System.out.println("\tConnected");
 					try{
-						br_connectionReader = new BufferedReader(new InputStreamReader(con_connection.getInputStream()));
+						br_connectionReader = new BufferedReader(new InputStreamReader(con_connection.getInputStream(), "UTF-8"));
 					} catch (Exception e) {
 						lastError = new Error("br_connectionReader", Error.Type.Initiation, e.toString());
 					} finally {
