@@ -20,6 +20,9 @@ import net.staplr.master.Feeds;
 import net.staplr.master.Master;
 import FFW.Network.*;
 
+/**Master object for handling a specific type of master communications: for either masters and service
+ * @author murphyc1
+ */
 public class Communicator implements Runnable
 {
 	private DefaultSocketConnection sc_listener;
@@ -41,6 +44,14 @@ public class Communicator implements Runnable
 		Master
 	}
 	
+	/**Instantiates the Communicator object 
+	 * @param s_settings - Handle to the Settings object
+	 * @param i_port - Port to listen on for connections
+	 * @param t_type - Type of communicator (Service, Master)
+	 * @param l_main - Main log object
+	 * @param f_feeds - Object of feeds this master is responsible for
+	 * @author murphyc1
+	 */
 	public Communicator(Settings s_settings, int i_port, Type t_type, Log l_main, Feeds f_feeds)
 	{
 		this.s_settings = s_settings;
@@ -66,6 +77,9 @@ public class Communicator implements Runnable
 		}
 	}
 	
+	/**Main function of Communicator. Contains the loop for waiting and taking in clients.
+	 * @author murphyc1
+	 */
 	public void run()
 	{
 		if(sc_listener.isBound())
@@ -81,6 +95,9 @@ public class Communicator implements Runnable
 		}
 	}
 	
+	/**Stops the Communicator
+	 * @author murphyc1
+	 */
 	public synchronized void stop()
 	{
 		b_run = false;
@@ -88,6 +105,11 @@ public class Communicator implements Runnable
 		// TODO Cleanup time!
 	}
 	
+	/**Adds a client to the master
+	 * @param sc_newClient - Socket connection object of the connection
+	 * @param b_isJoining - Whether or not this is the master's first connection to an active master
+	 * @return Worker for the connection
+	 */
 	public Worker addClient(DefaultSocketConnection sc_newClient, boolean b_isJoining)
 	{
 		Worker w_new = null;
@@ -116,6 +138,10 @@ public class Communicator implements Runnable
 		return w_new;
 	}
 	
+	/**Connects to a master
+	 * @param credentials - Credentials for master (location, port, key)
+	 * @return MessageExecutor for the connection 
+	 */
 	public MessageExecutor connect(Credentials credentials)
 	{
 		DefaultSocketConnection sc_new = new DefaultSocketConnection((String)credentials.get(Credentials.Properties.location), Integer.valueOf((String)credentials.get(Credentials.Properties.port)));
@@ -160,6 +186,10 @@ public class Communicator implements Runnable
 		return map_masterAddresses;
 	}
 	
+	/**Redistributes feeds from a master when said master goes down
+	 * @param Address of master in the form of XXX.XXX.XXX:PORT
+	 * @author murphyc1
+	 */
 	public synchronized void redistributeFeeds(String str_address)
 	{
 		lh_communication.write("Redistributing feeds from "+str_address);
@@ -248,6 +278,10 @@ public class Communicator implements Runnable
 		lh_communication.write("Feed distribution now resolved");
 	}
 	
+	/**Broadcasts a message to all connected masters
+	 * @param msg_broadcast - Message to broadcast
+	 * @author murphyc1
+	 */
 	public void broadcast(Message msg_broadcast)
 	{
 		lh_communication.write("Broadcasting to all other masters:\r\n"+msg_broadcast.toString());
@@ -260,11 +294,18 @@ public class Communicator implements Runnable
 		lh_communication.write("Sent to "+arr_worker.size()+" masters");
 	}
 	
+	/**Accessor for the Worker list
+	 * @return All workers for the master
+	 * @author murphyc1
+	 */
 	public ArrayList<Worker> getWorkers()
 	{
 		return arr_worker;
 	}
 	
+	/**Accessor for the number of current connections to other masters
+	 * @return Number of current connections
+	 */
 	public int getConnectionCount()
 	{
 		return arr_client.size();
