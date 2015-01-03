@@ -152,6 +152,8 @@ public class Downloader implements ErrorProne
 			}
 		}
 		
+		con_connection.disconnect();
+		
 		
 		return true;
 	}
