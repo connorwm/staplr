@@ -147,6 +147,20 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 					}
 					
 					lh_worker.write("Updated "+arr_feeds.length+" feeds");
+					
+					lh_worker.write("Preparing FeedSync Response...");
+					json_feeds = new JSONArray();
+					
+					for(int i_feedIndex = 0; i_feedIndex < map_assignments.get("127.0.0.1").size(); i_feedIndex++)
+					{
+						json_feeds.add((String)map_assignments.get("127.0.0.1").get(i_feedIndex));
+					}
+					
+					Message msg_feedSync = new Message(Type.Response, Value.FeedSync);
+					msg_feedSync.addItem("feeds", json_feeds);
+					
+					lh_worker.write("Sending...");
+					super.send(msg_feedSync);
 				}
 			}
 			if(msg_message.getValue() == Value.FeedDistribute)
@@ -318,6 +332,51 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 					msg_feedSync.addItem("feeds", json_feedList);
 					
 					c_communicator.broadcast(msg_feedSync);
+				}
+			}
+			if(msg_message.getValue() == Value.FeedSync)
+			{
+				String[] arr_feeds = null;
+				JSONArray json_feeds = null;
+				Map<String,ArrayList<String>> map_assignments = f_feeds.getAssignments();
+				
+				lh_worker.write("FeedSyncing with "+sc_client.getAddress() + " to update assignments");
+				
+				try {
+					if(msg_message.get("feeds") == null)
+					{
+						lh_worker.write(Entry.Type.Error, "feeds is null");
+					}
+					
+					json_feeds = (JSONArray) msg_message.get("feeds");
+					arr_feeds = new String[json_feeds.size()];
+					
+					for(int i_feedIndex = 0; i_feedIndex < json_feeds.size(); i_feedIndex++)
+					{
+						arr_feeds[i_feedIndex] = json_feeds.get(i_feedIndex).toString();
+					}
+				} catch (Exception e) {
+					// Well that must not have been right
+					lh_worker.write(Entry.Type.Error, "Invalid array: could not cast");
+					respondInvalid(msg_message);
+				}
+				
+				if(arr_feeds != null)
+				{
+					// Clear previous mappings
+					map_assignments.put(sc_client.getAddress(), new ArrayList<String>());
+					
+					// Now we can add the mappings					
+					for(int i_feedIndex = 0; i_feedIndex < arr_feeds.length; i_feedIndex++)
+					{
+						map_assignments.get(sc_client.getAddress()).add(arr_feeds[i_feedIndex]);
+					}
+					
+					lh_worker.write("Updated "+arr_feeds.length+" feeds");
+				}
+				else
+				{
+					lh_worker.write("Failed to update feeds for "+sc_client.getAddress());
 				}
 			}
 		}
