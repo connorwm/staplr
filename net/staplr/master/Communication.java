@@ -1,6 +1,8 @@
 package net.staplr.master;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -29,6 +31,7 @@ public class Communication implements Runnable
 	private LogHandle lh_communication;
 	
 	private ArrayList<ConnectionCheck> arr_connectionChecks;
+	public Map<String, Integer> map_redistributeNumbers;
 	
 	public Communication(Settings s_settings, int i_servicePort, int i_masterCommunicationPort, Log l_main, Feeds f_feeds)
 	{
@@ -41,6 +44,7 @@ public class Communication implements Runnable
 		es_components = Executors.newCachedThreadPool();
 		
 		arr_connectionChecks = new ArrayList<ConnectionCheck>();
+		map_redistributeNumbers = new HashMap<String, Integer>();
 	}
 	
 	public void run()
