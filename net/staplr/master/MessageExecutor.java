@@ -1,6 +1,7 @@
 package net.staplr.master;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -223,6 +224,83 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 					respondInvalid(msg_message);
 				}
 			}
+			if(msg_message.getValue() == Value.RedistributeNumber)
+			{
+				int i_number = -1;
+				String str_number = (String)msg_message.get("number");
+				
+				if(str_number != null)
+				{
+					try
+					{
+						i_number = Integer.valueOf(str_number);
+					}
+					catch (Exception e)
+					{
+						lh_worker.write("Invalid redistribute number: could not be converted to an integer");
+						respondInvalid(msg_message);
+					}
+					
+					if(i_number != -1)
+					{
+						// Check to make sure no other master has used this number
+
+						if(c_communicator.getParent().map_redistributeNumbers.values().contains(i_number))
+						{
+							lh_worker.write("Redistribute number has already been used ("+i_number+")");
+							
+							Message msg_alreadyAssigned = new Message(Type.Response, Value.DuplicateNumber);
+							String str_address = "";
+							Iterator<String> itr_assignments = c_communicator.getParent().map_redistributeNumbers.keySet().iterator();
+							
+							// Find out who else has it
+							while(itr_assignments.hasNext())
+							{
+								str_address = itr_assignments.next();
+								
+								if(c_communicator.getParent().map_redistributeNumbers.get(str_address) == i_number)
+								{
+									// Now str_address has the address of the other master that has the duplicate number
+									// We can now send them a duplicate message
+									break;
+								}
+							}
+							
+							lh_worker.write("Sending already used response...");
+							super.send(msg_alreadyAssigned);
+							
+							lh_worker.write("Notifying other master...");
+							
+							if(str_address != "127.0.0.1")
+							{
+								if(!c_communicator.sendTo(str_address, msg_alreadyAssigned))
+								{
+									lh_worker.write("Failed to send to master at "+str_address+": does not exist/not connected");
+								}
+								else
+								{
+									lh_worker.write("Sent redistribute message to "+str_address);
+								}
+							}
+							else
+							{
+								lh_worker.write("Duplicate number also my own; sending out redistribution number again...");
+								c_communicator.getParent().redistributeFeeds();
+							}
+						}
+						else
+						{
+							lh_worker.write("Valid redistribute number from "+sc_client.getAddress()+": "+i_number);
+							c_communicator.getParent().map_redistributeNumbers.put(sc_client.getAddress(), i_number);
+						}					
+					}
+				}
+				else
+				{
+					lh_worker.write("No redistribution number given in message");
+					respondInvalid(msg_message);
+				}
+			}
 		}
 		else if (msg_message.getType() == Type.Response) 
 		{
@@ -428,6 +506,11 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 					lh_worker.write("Invalid ConnectionCheck Response, missing information:\n\tAddress: "+str_address+"\n\tStatus: "+str_connectionStatus);
 					respondInvalid(msg_message);
 				}
+			}
+			if(msg_message.getValue() == Value.DuplicateNumber)
+			{
+				lh_worker.write("My redistribution number is duplicate; sending a new one");
+				c_communicator.getParent().redistributeFeeds();
 			}
 		}
 	}
