@@ -13,11 +13,13 @@ import org.json.simple.JSONValue;
 
 public class Message
 {
-	public enum Type{
+	public enum Type
+	{
 		Request,
 		Response
 	}
-	public enum Value{
+	public enum Value
+	{
 		Authorization,
 		Accepted,
 		Rejected,
@@ -37,7 +39,9 @@ public class Message
 		Logs,
 		Ping,
 		Pong,
-		RedistributeNumber
+		RedistributeNumber,
+		DuplicateNumber,
+		ConnectionCheck
 	}
 	
 	private Type t_type;
