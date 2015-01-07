@@ -3,6 +3,7 @@ package net.staplr.master;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.swing.JTextField;
 
@@ -187,6 +188,40 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				f_feeds.buildSchedule();
 				
 				lh_worker.write("Finished distributing");
+			}
+			if(msg_message.getValue() == Value.ConnectionCheck)
+			{
+				String str_address = (String)msg_message.get("address");
+				
+				if(str_address != null && str_address.length() > 0)
+				{
+					Set<String> map_masters = c_communicator.getConnectedMasters().keySet();
+					String str_connectionStatus = "";
+					
+					lh_worker.write("Checking connection status of master at "+str_address);
+					
+					if(map_masters.contains(str_address))
+					{
+						lh_worker.write("Still connected to master "+str_address);
+						str_connectionStatus = "up";
+					}
+					else
+					{
+						lh_worker.write("Not connected to master");
+						str_connectionStatus = "down";
+					}
+					
+					Message msg_connectionCheckResponse = new Message(Type.Response, Value.ConnectionCheck);
+					msg_connectionCheckResponse.addItem("address", str_address);
+					msg_connectionCheckResponse.addItem("status", str_connectionStatus);
+					
+					super.send(msg_connectionCheckResponse);
+				}
+				else
+				{
+					lh_worker.write("Invalid ConnectionCheck: no address specified");
+					respondInvalid(msg_message);
+				}
 			}
 		}
 		else if (msg_message.getType() == Type.Response) 
@@ -377,6 +412,21 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				else
 				{
 					lh_worker.write("Failed to update feeds for "+sc_client.getAddress());
+				}
+			}
+			if(msg_message.getValue() == Value.ConnectionCheck)
+			{
+				String str_address = (String)msg_message.get("address");
+				String str_connectionStatus = (String)msg_message.get("status");
+				
+				if(str_address != null && str_connectionStatus != null)
+				{
+					
+				}
+				else
+				{
+					lh_worker.write("Invalid ConnectionCheck Response, missing information:\n\tAddress: "+str_address+"\n\tStatus: "+str_connectionStatus);
+					respondInvalid(msg_message);
 				}
 			}
 		}
