@@ -226,4 +226,27 @@ public class Communicator implements Runnable
 	{
 		return c_communication;
 	}
+	
+	/**Sends a message to a master at a specific address
+	 * @param str_address Address of master
+	 * @param msg_message Message to send
+	 * @return True if the master is connected and exists
+	 */
+	public boolean sendTo(String str_address, Message msg_message)
+	{
+		boolean b_success = false;
+		
+		for(Worker w_worker : arr_worker)
+		{
+			if(w_worker.getClientAddress() == str_address)
+			{
+				w_worker.mx_executor.send(msg_message);
+				
+				b_success = true;
+				break;
+			}
+		}
+		
+		return b_success;
+	}
 }
