@@ -106,13 +106,12 @@ public class Communication implements Runnable
 		//l_main.write("ERROR: Could not establish connection to other masters; shutting down...");
 	}
 	
-	/**Redistributes feeds from a master when said master goes down
-	 * @param Address of master in the form of XXX.XXX.XXX (no port)
+	/**Sends out a redistribution number (randomly selected number) for choosing a master to redistribute the feeds
 	 * @author murphyc1
 	 */
-	public void redistributeFeeds(String str_address)
+	public void redistributeFeeds()
 	{
-		lh_communication.write("Redistributing feeds from "+str_address);
+		lh_communication.write("Redistributing Feeds: sending redistribute number to other masters");
 		
 		/*
 		 * Decentralized Feed Redistribution
@@ -126,6 +125,7 @@ public class Communication implements Runnable
 		msg_redistributeNumber.addItem("number", String.valueOf(new Random().nextInt(65535)));
 		
 		c_master.broadcast(msg_redistributeNumber);
+		map_redistributeNumbers.put("127.0.0.1", Integer.valueOf((String)msg_redistributeNumber.get("number")));
 	}
 	
 	public Communicator getMasterCommunicator()
