@@ -1,13 +1,16 @@
 package net.staplr.master;
 
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import FFW.Network.DefaultSocketConnection;
 import net.staplr.common.Communicator;
 import net.staplr.common.Settings;
 import net.staplr.common.Credentials.Properties;
 import net.staplr.common.Worker;
+import net.staplr.common.feed.Feed;
 import net.staplr.common.message.Message;
 import net.staplr.common.message.MessageExecutor;
 import net.staplr.logging.Log;
@@ -33,8 +36,8 @@ public class Communication implements Runnable
 		
 		lh_communication = new LogHandle("com", l_main);
 		
-		c_service = new Communicator(s_settings, i_servicePort, Communicator.Type.Service, l_main, f_feeds);
-		c_master = new Communicator(s_settings, i_masterCommunicationPort, Communicator.Type.Master, l_main, f_feeds);
+		c_service = new Communicator(this, s_settings, i_servicePort, Communicator.Type.Service, l_main, f_feeds);
+		c_master = new Communicator(this, s_settings, i_masterCommunicationPort, Communicator.Type.Master, l_main, f_feeds);
 		es_components = Executors.newCachedThreadPool();
 		
 		arr_connectionChecks = new ArrayList<ConnectionCheck>();
@@ -97,6 +100,28 @@ public class Communication implements Runnable
 		}
 		
 		//l_main.write("ERROR: Could not establish connection to other masters; shutting down...");
+	}
+	
+	/**Redistributes feeds from a master when said master goes down
+	 * @param Address of master in the form of XXX.XXX.XXX (no port)
+	 * @author murphyc1
+	 */
+	public void redistributeFeeds(String str_address)
+	{
+		lh_communication.write("Redistributing feeds from "+str_address);
+		
+		/*
+		 * Decentralized Feed Redistribution
+		 * 
+		 * Pick a random number and send it to all of the other masters
+		 * Rechoose and resend a number if someone else has the same one
+		 * The master with the highest number redistributes the feeds
+		 */
+		
+		Message msg_redistributeNumber = new Message(Type.Request, Value.RedistributeNumber);
+		msg_redistributeNumber.addItem("number", String.valueOf(new Random().nextInt(65535)));
+		
+		c_master.broadcast(msg_redistributeNumber);
 	}
 	
 	public Communicator getMasterCommunicator()
