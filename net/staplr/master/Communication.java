@@ -98,4 +98,14 @@ public class Communication implements Runnable
 		
 		//l_main.write("ERROR: Could not establish connection to other masters; shutting down...");
 	}
+	
+	public Communicator getMasterCommunicator()
+	{
+		return c_master;
+	}
+	
+	public Communicator getServiceCommunicator()
+	{
+		return c_service;
+	}
 }
