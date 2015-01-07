@@ -1,17 +1,19 @@
 package net.staplr.master;
 
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import net.staplr.common.Communicator;
 import net.staplr.common.Settings;
 import net.staplr.common.Credentials.Properties;
-import net.staplr.common.Settings.Setting;
 import net.staplr.common.Worker;
 import net.staplr.common.message.Message;
 import net.staplr.common.message.MessageExecutor;
 import net.staplr.logging.Log;
 import net.staplr.logging.LogHandle;
+import net.staplr.common.message.Message.Type;
+import net.staplr.common.message.Message.Value;
 
 public class Communication implements Runnable
 {
@@ -23,6 +25,7 @@ public class Communication implements Runnable
 	
 	private LogHandle lh_communication;
 	
+	private ArrayList<ConnectionCheck> arr_connectionChecks;
 	
 	public Communication(Settings s_settings, int i_servicePort, int i_masterCommunicationPort, Log l_main, Feeds f_feeds)
 	{
@@ -33,6 +36,8 @@ public class Communication implements Runnable
 		c_service = new Communicator(s_settings, i_servicePort, Communicator.Type.Service, l_main, f_feeds);
 		c_master = new Communicator(s_settings, i_masterCommunicationPort, Communicator.Type.Master, l_main, f_feeds);
 		es_components = Executors.newCachedThreadPool();
+		
+		arr_connectionChecks = new ArrayList<ConnectionCheck>();
 	}
 	
 	public void run()
@@ -55,6 +60,20 @@ public class Communication implements Runnable
 		}
 		
 		lh_communication.write("Distributed FeedSync message to "+c_master.getConnectionCount());
+	}
+	
+	/**Sends a message to a fellow master to check and 
+	 * @param str_address - Address of master to confirm if down
+	 */
+	public void verifyDownMaster(String str_address)
+	{
+		Message m_connectionCheck = new Message(Type.Request, Value.ConnectionCheck);
+		m_connectionCheck.addItem("address", str_address);
+		
+		c_master.broadcast(m_connectionCheck);
+		
+		ConnectionCheck cc_check = new ConnectionCheck(str_address, (String[])c_master.getConnectedMasters().keySet().toArray());
+		arr_connectionChecks.add(cc_check);
 	}
 	
 	public void joinMasters()
