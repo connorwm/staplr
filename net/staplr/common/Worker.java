@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import net.staplr.common.Settings;
 import net.staplr.logging.Log;
 import net.staplr.logging.LogHandle;
+import net.staplr.master.Communication;
 import net.staplr.master.Feeds;
 import net.staplr.master.Master;
 import FFW.Network.DefaultSocketConnection;
@@ -21,7 +22,7 @@ public class Worker implements Runnable
 	private MessageEnsurer me_ensurer;
 	public net.staplr.common.message.MessageExecutor mx_executor;
 	private Thread t_ensurer;
-	private Communicator c_communicator;
+	private Communication c_communication;
 	
 	private ArrayList<Message> msg_inbox;
 	private ArrayList<Message> msg_outbox;
@@ -31,12 +32,12 @@ public class Worker implements Runnable
 	private LogHandle lh_worker;
 	
 	public Worker(DefaultSocketConnection sc_client, Settings s_settings, Log l_main, 
-			boolean b_isJoining, Communicator.Type t_type, Feeds f_feeds, Communicator c_communicator)
+			boolean b_isJoining, Communicator.Type t_type, Feeds f_feeds, Communication c_communication)
 	{
 		this.sc_client = sc_client;
 		msg_inbox = new ArrayList<Message>();
 		msg_outbox = new ArrayList<Message>();
-		this.c_communicator = c_communicator; 
+		this.c_communication = c_communication; 
 		
 		b_run = true;
 		
@@ -49,7 +50,7 @@ public class Worker implements Runnable
 			mx_executor = new net.staplr.service.MessageExecutor(sc_client, lh_worker, me_ensurer, msg_inbox, msg_outbox, s_settings, f_feeds);
 			break;
 		case Master:
-			mx_executor = new net.staplr.master.MessageExecutor(sc_client, lh_worker, me_ensurer, msg_inbox, msg_outbox, s_settings, c_communicator, f_feeds);
+			mx_executor = new net.staplr.master.MessageExecutor(sc_client, lh_worker, me_ensurer, msg_inbox, msg_outbox, s_settings, c_communication.getMasterCommunicator(), f_feeds);
 			break;
 		}
 		
@@ -82,18 +83,7 @@ public class Worker implements Runnable
 				}
 				catch (Exception e)
 				{
-					lh_worker.write("ERROR: Could not receive message:\r\n"+e.toString());
-					
-					if(str_received == null)
-					{
-						lh_worker.write("NOTICE: Assumed to be disconnected; ending communication processing");
-						b_run = false;
-						
-						if(t_type == Communicator.Type.Master)
-						{
-							c_communicator.redistributeFeeds(sc_client.getAddress());
-						}	
-					}
+					lh_worker.write("ERROR: Could not receive message:\r\n"+e.toString());					
 				}
 				finally
 				{
@@ -120,8 +110,8 @@ public class Worker implements Runnable
 				b_run = false;
 				
 				if(t_type == Communicator.Type.Master)
-				{
-					c_communicator.redistributeFeeds(sc_client.getAddress());
+				{					
+					c_communication.verifyDownMaster(getClientAddress());		
 				}	
 			}
 		}
