@@ -82,7 +82,9 @@ public class Message
 		} catch (Exception e) {
 			e.printStackTrace();
 			b_isValid = false;
-		} finally {
+		} 
+		if(b_isValid) 
+		{	
 			if(json_message.containsKey("Request"))
 			{
 				t_type = Type.Request;
