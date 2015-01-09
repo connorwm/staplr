@@ -73,13 +73,23 @@ public class Worker implements Runnable
 
 		while(b_run)
 		{			
-			if(sc_client.isConnected())
+			// TODO Fix ambiguation with being connected vs being closed in FFW library
+			if(!sc_client.isClosed())
 			{
 				try
 				{
 					str_received = sc_client.receive();
-					lh_worker.write("Received: "+str_received);
-					msg_received = new Message(str_received);
+					
+					if(str_received != null)
+					{
+						lh_worker.write("Received: "+str_received);
+						msg_received = new Message(str_received);
+					}
+					else
+					{
+						lh_worker.write("Received null from client; disconnecting...");
+						sc_client.close();
+					}
 				}
 				catch (Exception e)
 				{
