@@ -180,10 +180,21 @@ public class Communicator implements Runnable
 		
 		for(int i_client = 0; i_client < arr_client.size(); i_client++)
 		{
-			String str_address = arr_client.get(i_client).getAddress();
-			str_address = str_address.substring(1, str_address.indexOf(":"));
-			
-			map_masterAddresses.put(str_address, arr_client.get(i_client).getPort());
+			if(!arr_client.get(i_client).isClosed())
+			{
+				String str_address = arr_client.get(i_client).getAddress();
+				str_address = str_address.substring(1, str_address.indexOf(":"));
+				
+				map_masterAddresses.put(str_address, arr_client.get(i_client).getPort());
+			}
+			else
+			{
+				arr_client.remove(i_client);
+				
+				// Call again since we have modified the loop limits
+				map_masterAddresses = getConnectedMasters();
+				break; // Make sure we do not continue
+			}
 		}
 		
 		return map_masterAddresses;
@@ -219,7 +230,27 @@ public class Communicator implements Runnable
 	 */
 	public int getConnectionCount()
 	{
-		return arr_client.size();
+		int i_connectionCount = 0;
+		ArrayList<DefaultSocketConnection> arr_toBeRemoved = new ArrayList<DefaultSocketConnection>();
+		
+		for(int i_clientIndex = 0; i_clientIndex < arr_client.size(); i_clientIndex++)
+		{
+			if(!arr_client.get(i_clientIndex).isClosed())
+			{
+				i_connectionCount++;
+			}
+			else
+			{
+				arr_toBeRemoved.add(arr_client.get(i_clientIndex));
+			}
+		}
+		
+		if(!arr_client.removeAll(arr_toBeRemoved))
+		{
+			lh_communication.write("ERROR: Failed to remove all of closed connections from master's client array (Removal Queue: "+arr_toBeRemoved.size()+"; Total Size: "+(i_connectionCount + arr_toBeRemoved.size())+")");
+		}
+		
+		return i_connectionCount;
 	}
 	
 	public Communication getParent()
