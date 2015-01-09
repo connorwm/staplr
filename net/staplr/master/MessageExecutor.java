@@ -188,9 +188,9 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				ArrayList<Feed> arr_feeds = new ArrayList<Feed>();
 				List<Feed> arr_masterFeeds = f_feeds.arr_feed;
 			
-				lh_worker.write("Distributing "+(arr_feeds.size()/(c_communicator.getConnectionCount()+1)+" feeds to "+sc_client.getAddress()));
+				lh_worker.write("Distributing "+(arr_masterFeeds.size()/(c_communicator.getConnectionCount()+1)+"/"+arr_masterFeeds.size()+" feeds to "+sc_client.getAddress()));
 				
-				for(int i_feedIndex = 0; i_feedIndex < (arr_masterFeeds.size()/(c_communicator.getConnectionCount()+1)); i_feedIndex++)
+				for(int i_feedIndex = 0; i_feedIndex <= (arr_masterFeeds.size()/(c_communicator.getConnectionCount()+1)); i_feedIndex++)
 				{
 					arr_feeds.add(arr_masterFeeds.remove(i_feedIndex));
 				}
