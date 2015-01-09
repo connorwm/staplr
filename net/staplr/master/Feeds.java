@@ -21,7 +21,6 @@ public class Feeds implements Runnable
 	private SlaveMaster sm_master;
 	public List<Feed> arr_feed;
 	private ArrayList<String> arr_lostFeeds;
-	private int i_redistributeNumber;
 	private Map<String,ArrayList<String>> map_assignments;
 	
 	private DatabaseExecutor dx_executor;
@@ -98,15 +97,5 @@ public class Feeds implements Runnable
 	public void setLostFeeds(ArrayList<String> arr_lostFeeds)
 	{
 		this.arr_lostFeeds = arr_lostFeeds;
-	}
-	
-	public int getRedistributeNumber()
-	{
-		return i_redistributeNumber;
-	}
-	
-	public void setRedistributeNumber(int i_number)
-	{
-		i_redistributeNumber = i_number;
 	}
 }
