@@ -74,13 +74,23 @@ public class Communication implements Runnable
 	 */
 	public void verifyDownMaster(String str_address)
 	{
-		Message m_connectionCheck = new Message(Type.Request, Value.ConnectionCheck);
-		m_connectionCheck.addItem("address", str_address);
+		lh_communication.write("Messaging other masters to confirm if master at "+str_address+" is down");
 		
-		c_master.broadcast(m_connectionCheck);
-		
-		ConnectionCheck cc_check = new ConnectionCheck(str_address, (String[])c_master.getConnectedMasters().keySet().toArray());
-		arr_connectionChecks.add(cc_check);
+		if(c_master.getConnectedMasters().keySet().size() == 0)
+		{
+			Message m_connectionCheck = new Message(Type.Request, Value.ConnectionCheck);
+			m_connectionCheck.addItem("address", str_address);
+			
+			c_master.broadcast(m_connectionCheck);
+			
+			ConnectionCheck cc_check = new ConnectionCheck(str_address, (String[])c_master.getConnectedMasters().keySet().toArray());
+			arr_connectionChecks.add(cc_check);
+		}
+		else
+		{
+			lh_communication.write("\tNo other masters; redistributing feeds now");
+			redistributeFeeds();
+		}
 	}
 	
 	public void joinMasters()
@@ -106,10 +116,30 @@ public class Communication implements Runnable
 		//l_main.write("ERROR: Could not establish connection to other masters; shutting down...");
 	}
 	
-	/**Sends out a redistribution number (randomly selected number) for choosing a master to redistribute the feeds
+	/**Initiates the redistribute feeds process by sending out its redistribute number or handling the redistribution
+	 * if only one master is connected
 	 * @author murphyc1
 	 */
 	public void redistributeFeeds()
+	{
+		lh_communication.write("Redistributing Feeds...");
+		
+		if(c_master.getConnectionCount() == 0)
+		{
+			lh_communication.write("No other masters connected; redistributing feeds to self");
+			
+			
+		}
+		else
+		{
+			sendRedistributeNumber();
+		}
+	}
+	
+	/**Sends out a redistribution number (randomly selected number) for choosing a master to redistribute the feeds
+	 * @author murphyc1
+	 */
+	public void sendRedistributeNumber()
 	{
 		lh_communication.write("Redistributing Feeds: sending redistribute number to other masters");
 		
