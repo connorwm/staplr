@@ -280,4 +280,12 @@ public class Communicator implements Runnable
 		
 		return b_success;
 	}
+	
+	/**Accessor for Feeds object 	
+	 * @return The master's instance of the Feed object containing its feeds and the system's feed assignments
+	 */
+	public Feeds getFeeds()
+	{
+		return f_feeds;
+	}
 }
