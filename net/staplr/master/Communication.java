@@ -2,6 +2,7 @@ package net.staplr.master;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
@@ -128,7 +129,23 @@ public class Communication implements Runnable
 		{
 			lh_communication.write("No other masters connected; redistributing feeds to self");
 			
+			Map<String, ArrayList<String>> map_assignments = c_master.getFeeds().getAssignments();
+			Iterator<ArrayList<String>> it_assignments = map_assignments.values().iterator();
 			
+			for(int i_assignmentIndex = 0; i_assignmentIndex < map_assignments.values().size(); i_assignmentIndex++)
+			{
+				ArrayList<String> arr_feeds = it_assignments.next();
+				
+				if(map_assignments.keySet().toArray()[i_assignmentIndex] != "127.0.0.1")
+				{
+					if(!map_assignments.get("127.0.0.1").addAll(arr_feeds))
+					{
+						lh_communication.write("ERROR: Failed to add all of the feeds from "+(String)map_assignments.keySet().toArray()[i_assignmentIndex]);
+					}
+				}
+			}
+			
+			lh_communication.write("Finished distributing feeds to self");
 		}
 		else
 		{
