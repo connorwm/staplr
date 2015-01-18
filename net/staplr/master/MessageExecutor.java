@@ -251,71 +251,104 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 			{
 				int i_number = -1;
 				String str_number = (String)msg_message.get("number");
+				String str_address = (String)msg_message.get("address");
 				
 				if(str_number != null)
 				{
-					try
+					if(str_address != null)
 					{
-						i_number = Integer.valueOf(str_number);
-					}
-					catch (Exception e)
-					{
-						lh_worker.write("Invalid redistribute number: could not be converted to an integer");
-						respondInvalid(msg_message);
-					}
-					
-					if(i_number != -1)
-					{
-						// Check to make sure no other master has used this number
-
-						if(c_communicator.getParent().map_redistributeNumbers.values().contains(i_number))
+						try
 						{
-							lh_worker.write("Redistribute number has already been used ("+i_number+")");
-							
-							Message msg_alreadyAssigned = new Message(Type.Response, Value.DuplicateNumber);
-							String str_address = "";
-							Iterator<String> itr_assignments = c_communicator.getParent().map_redistributeNumbers.keySet().iterator();
-							
-							// Find out who else has it
-							while(itr_assignments.hasNext())
+							i_number = Integer.valueOf(str_number);
+						}
+						catch (Exception e)
+						{
+							lh_worker.write("Invalid redistribute number: could not be converted to an integer");
+							respondInvalid(msg_message);
+						}
+
+						if(i_number != -1)
+						{
+							// Check to make sure no other master has used this number
+							Map<String, FeedRedistribution> map_feedRedistribution = c_communicator.getParent().getFeedRedistributionMap();
+							Map<String, Integer> map_redistributionNumbers = map_feedRedistribution.get(str_address).getRedistributeNumbers();
+
+							if(c_communicator.getParent().getFeedRedistributionMap().values().contains(i_number))
 							{
-								str_address = itr_assignments.next();
+								lh_worker.write("Redistribute number has already been used ("+i_number+")");
+
+								Message msg_alreadyAssigned = new Message(Type.Response, Value.DuplicateNumber);
 								
-								if(c_communicator.getParent().map_redistributeNumbers.get(str_address) == i_number)
+								Iterator<String> itr_assignments = map_redistributionNumbers.keySet().iterator();
+								String str_currentAddress = "";
+
+								// Find out who else has it
+								while(itr_assignments.hasNext())
 								{
-									// Now str_address has the address of the other master that has the duplicate number
-									// We can now send them a duplicate message
-									break;
+									str_currentAddress = itr_assignments.next();
+
+									if(map_redistributionNumbers.get(str_address) == i_number)
+									{
+										// Now str_currentAddress has the address of the other master that has the duplicate number
+										// We can now send them a duplicate message
+										break;
+									}
 								}
-							}
-							
-							lh_worker.write("Sending already used response...");
-							super.send(msg_alreadyAssigned);
-							
-							lh_worker.write("Notifying other master...");
-							
-							if(str_address != "127.0.0.1")
-							{
-								if(!c_communicator.sendTo(str_address, msg_alreadyAssigned))
+
+								lh_worker.write("Sending already used response...");
+								super.send(msg_alreadyAssigned);
+
+								lh_worker.write("Notifying other master...");
+
+								if(str_address != "127.0.0.1")
 								{
-									lh_worker.write("Failed to send to master at "+str_address+": does not exist/not connected");
+									if(!c_communicator.sendTo(str_currentAddress, msg_alreadyAssigned))
+									{
+										lh_worker.write("Failed to send to master at "+str_currentAddress+": does not exist/not connected");
+									}
+									else
+									{
+										lh_worker.write("Sent redistribute message to "+str_currentAddress);
+									}
 								}
 								else
 								{
-									lh_worker.write("Sent redistribute message to "+str_address);
+									lh_worker.write("Duplicate number also my own; sending out redistribution number again...");
+									c_communicator.getParent().redistributeFeeds(str_currentAddress);
 								}
 							}
 							else
 							{
-								lh_worker.write("Duplicate number also my own; sending out redistribution number again...");
-								c_communicator.getParent().redistributeFeeds();
-							}
+								lh_worker.write("Valid redistribute number from "+sc_client.getAddress()+": "+i_number);
+								map_feedRedistribution.get(str_address).getRedistributeNumbers().put(sc_client.getAddress(), i_number);
+
+								// Now check to see if all numbers have been accounted for
+
+
+								if(map_feedRedistribution.get(str_address).allNumbersReceived())
+								{
+									lh_worker.write("All redistribute numbers received");
+
+									if(!map_feedRedistribution.get(str_address).IAmRedistributionLeader())
+									{
+										lh_worker.write("Master at "+map_feedRedistribution.get(str_address).getAddressOfHighest()+" has highest number");
+									}
+									else
+									{
+										lh_worker.write("I have the highest number");
+										lh_worker.write("Gathering missing feeds...");
+
+										ArrayList<String> arr_missingFeeds = new ArrayList<String>();
+
+										
+									}
+								}
+							}					
 						}
-						else
-						{
-							lh_worker.write("Valid redistribute number from "+sc_client.getAddress()+": "+i_number);
-							c_communicator.getParent().map_redistributeNumbers.put(sc_client.getAddress(), i_number);
-						}					
+					}
+					else
+					{
+						lh_worker.write("No address given in message");
 					}
 				}
 				else
