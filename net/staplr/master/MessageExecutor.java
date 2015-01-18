@@ -584,8 +584,18 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 			//////////////////////////////////////////////////////////////////////////////////////////////////
 			if(msg_message.getValue() == Value.DuplicateNumber)
 			{
-				lh_worker.write("My redistribution number is duplicate; sending a new one");
-				c_communicator.getParent().redistributeFeeds();
+				String str_address = (String)msg_message.get("address");
+				
+				if(str_address != null)
+				{
+					lh_worker.write("My redistribution number is duplicate; sending a new one");
+					c_communicator.getParent().redistributeFeeds(str_address);
+				}
+				else
+				{
+					lh_worker.write("DuplicateNumber message is invalid: missing address of downed master");
+					respondInvalid(msg_message);
+				}
 			}
 		}
 	}
