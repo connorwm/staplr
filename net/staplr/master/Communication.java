@@ -185,4 +185,9 @@ public class Communication implements Runnable
 	{
 		return c_service;
 	}
+	
+	public Map<String, FeedRedistribution> getFeedRedistributionMap()
+	{
+		return map_feedRedistribution;
+	}
 }
