@@ -32,7 +32,7 @@ public class Communication implements Runnable
 	private LogHandle lh_communication;
 	
 	private ArrayList<ConnectionCheck> arr_connectionChecks;
-	public Map<String, Integer> map_redistributeNumbers;
+	private Map<String, FeedRedistribution> map_feedRedistribution;
 	
 	public Communication(Settings s_settings, int i_servicePort, int i_masterCommunicationPort, Log l_main, Feeds f_feeds)
 	{
@@ -45,7 +45,7 @@ public class Communication implements Runnable
 		es_components = Executors.newCachedThreadPool();
 		
 		arr_connectionChecks = new ArrayList<ConnectionCheck>();
-		map_redistributeNumbers = new HashMap<String, Integer>();
+		map_feedRedistribution = new HashMap<String, FeedRedistribution>();
 	}
 	
 	public void run()
@@ -90,7 +90,7 @@ public class Communication implements Runnable
 		else
 		{
 			lh_communication.write("\tNo other masters; redistributing feeds now");
-			redistributeFeeds();
+			redistributeFeeds(str_address);
 		}
 	}
 	
@@ -121,7 +121,7 @@ public class Communication implements Runnable
 	 * if only one master is connected
 	 * @author murphyc1
 	 */
-	public void redistributeFeeds()
+	public void redistributeFeeds(String str_address)
 	{
 		lh_communication.write("Redistributing Feeds...");
 		
@@ -149,14 +149,15 @@ public class Communication implements Runnable
 		}
 		else
 		{
-			sendRedistributeNumber();
+			sendRedistributeNumber(str_address);
 		}
 	}
 	
 	/**Sends out a redistribution number (randomly selected number) for choosing a master to redistribute the feeds
+	 * @param str_address Address of downed master we are setting up a redistribution for
 	 * @author murphyc1
 	 */
-	public void sendRedistributeNumber()
+	public void sendRedistributeNumber(String str_address)
 	{
 		lh_communication.write("Redistributing Feeds: sending redistribute number to other masters");
 		
@@ -172,7 +173,7 @@ public class Communication implements Runnable
 		msg_redistributeNumber.addItem("number", String.valueOf(new Random().nextInt(65535)));
 		
 		c_master.broadcast(msg_redistributeNumber);
-		map_redistributeNumbers.put("127.0.0.1", Integer.valueOf((String)msg_redistributeNumber.get("number")));
+		map_feedRedistribution.get(str_address).getRedistributeNumbers().put("127.0.0.1", Integer.valueOf((String)msg_redistributeNumber.get("number")));
 	}
 	
 	public Communicator getMasterCommunicator()
