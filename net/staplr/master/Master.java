@@ -63,42 +63,44 @@ public class Master implements Runnable
 	{
 		  Master master = new Master();
 		  
-		  if(master.dx_executor.connect())
+		  if(args.length == 1)
 		  {
-			  if(args.length == 1)
-			  {
-				  master.startup(args[0]);
-			  }  else {
-				  System.out.println("Not enough parameters (1 needed)");
-				  System.out.println("Parameter 1: first or join");
-			  }
-		  } else {
-			  System.out.println("Could not fully connect to databases");
+			  master.startup(args[0]);
+		  }  else {
+			  System.out.println("Not enough parameters (1 needed)");
+			  System.out.println("Parameter 1: first or join");
 		  }
 	}
 	
 	public void startup(String str_startType)
 	{		
-		if(str_startType.equals("first"))
+		if(dx_executor.connect())
 		{
-			lh_master.write("Starting as first");
-
-			if(f_feeds.downloadFeeds())
+			if(str_startType.equals("first"))
 			{
-				f_feeds.buildSchedule();
+				lh_master.write("Starting as first");
 
+				if(f_feeds.downloadFeeds())
+				{
+					f_feeds.buildSchedule();
+
+					this.run();
+				} else {
+					lh_master.write("Failed to download feeds; will not run");
+				}
+			} else if (str_startType.equals("join")) {
+				lh_master.write("Starting as join");
+
+				s_settings.set(Settings.Setting.masterCommunicationPort, String.valueOf(new Random().nextInt(65535)));
 				this.run();
+				c_communication.joinMasters();
 			} else {
-				lh_master.write("Failed to download feeds; will not run");
+				lh_master.write(Type.Error, "Invalid arg[0]");
 			}
-		} else if (str_startType.equals("join")) {
-			lh_master.write("Starting as join");
-
-			s_settings.set(Settings.Setting.masterCommunicationPort, String.valueOf(new Random().nextInt(65535)));
-			this.run();
-			c_communication.joinMasters();
-		} else {
-			lh_master.write(Type.Error, "Invalid arg[0]");
+		}
+		else
+		{
+			lh_master.write("Could not fully connect to databases");
 		}
 	}
 	
