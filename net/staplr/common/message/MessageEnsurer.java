@@ -45,32 +45,39 @@ public class MessageEnsurer implements Runnable
 				// ------------------------------------------------------------
 				// Inbox
 				// ------------------------------------------------------------
-				//System.out.println("inbox size: "+msg_inbox.size());
+				//System.out.println("Inbox size: "+msg_inbox.size());
 				for(int i_messageIndex = 0; i_messageIndex < msg_inbox.size(); i_messageIndex++)
 				{
 					Message msg_in = msg_inbox.get(i_messageIndex);
 					
-					if(msg_in.requiresResponse()) // TODO NullPointerException in event of disconnection
+					if(msg_in != null)
 					{
-						if(msg_in.respondedTo())
+						if(msg_in.requiresResponse())
 						{
-							lh_worker.write("Removing responded to received message:\r\n"+msg_in);
-							msg_removeQueue.add(msg_in);
-						}
-					} 
-					else 
-					{
-						DateTime dt_timeSent = msg_in.getTimeReceived();
-						
-						if(dt_timeSent.plusMinutes(1).isBeforeNow())
+							if(msg_in.respondedTo())
+							{
+								lh_worker.write("Removing responded to received message:\r\n"+msg_in);
+								msg_removeQueue.add(msg_in);
+							}
+						} 
+						else 
 						{
-							lh_worker.write("Removing old received message:\r\n"+msg_in);
-							msg_removeQueue.add(msg_in);
+							DateTime dt_timeSent = msg_in.getTimeReceived();
+							
+							if(dt_timeSent.plusMinutes(1).isBeforeNow())
+							{
+								lh_worker.write("Removing old received message:\r\n"+msg_in);
+								msg_removeQueue.add(msg_in);
+							}
 						}
 					}
 				}
 				
-				if(msg_removeQueue.size() > 0)	msg_inbox.removeAll(msg_removeQueue);
+				if(msg_removeQueue.size() > 0)	
+				{
+					msg_inbox.removeAll(msg_removeQueue);
+					msg_removeQueue.clear();
+				}
 				
 				// ------------------------------------------------------------
 				// Outbox
@@ -132,11 +139,14 @@ public class MessageEnsurer implements Runnable
 					}
 				}
 				
-				if(msg_removeQueue.size() > 0)	msg_outbox.removeAll(msg_removeQueue);
+				if(msg_removeQueue.size() > 0)	
+				{
+					msg_outbox.removeAll(msg_removeQueue);
+					msg_removeQueue.clear();
+				}
 				
-				// Sleep time bitch!
 				try{
-					Thread.sleep(15000);
+					Thread.sleep(60000); // 60 Seconds
 				} catch (Exception e) {}
 			} catch (Exception e) {
 				e.printStackTrace();
