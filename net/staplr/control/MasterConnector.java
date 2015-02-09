@@ -55,6 +55,9 @@ public class MasterConnector
 	private JScrollPane scrl_log;
 	// --------------------------------------- //
 
+	/**
+	 * @wbp.parser.entryPoint
+	 */
 	public MasterConnector(Settings s_settings, Log l_masterConnector) {
 		this.s_settings = s_settings;
 		this.l_masterConnector = l_masterConnector;
@@ -101,7 +104,7 @@ public class MasterConnector
 		frame.setVisible(true);
 		
 		// ------------------------------------------
-		// Settings loading/form population
+		// Settings load
 		// ------------------------------------------
 		
 		tf_logger.log("Loading settings...", TextFieldLogger.StandardStyle);
@@ -110,6 +113,10 @@ public class MasterConnector
 		{
 			tf_logger.log("Loaded settings", TextFieldLogger.SuccessStyle);
 			
+			// ------------------------------------------
+			// Form population
+			// ------------------------------------------
+						
 			for(int i_masterIndex = 0; i_masterIndex < s_settings.c_credentials.size(); i_masterIndex++)
 			{
 				Credentials c_credentials = s_settings.c_credentials.get(i_masterIndex);
@@ -120,7 +127,7 @@ public class MasterConnector
 			// Thread startup
 			// ------------------------------------------
 
-			c_communicator = new Communicator(s_settings, 1998, Type.Service, l_masterConnector, null);
+			c_communicator = new Communicator(null, s_settings, 1998, Type.Service, l_masterConnector, null);
 			t_listener = new Thread(c_communicator);
 			
 			t_listener.start();
