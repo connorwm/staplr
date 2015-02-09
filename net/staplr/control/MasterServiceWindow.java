@@ -469,21 +469,18 @@ public class MasterServiceWindow {
 	{
 		String str_currentTab = tab_main.getTitleAt(tab_main.getSelectedIndex());
 		
-		switch(str_currentTab)
+		if(str_currentTab == "Settings")
 		{
-		case "Settings":
 			tf_logger.log("Refreshing settings...", TextFieldLogger.StandardStyle);
 			Message msg_settingsRequest = new Message(Type.Request, Value.Settings);
 			mx_executor.send(msg_settingsRequest);
-			break;
-		case "Feeds":
+		}
+		else if(str_currentTab == "Feeds")
+		{
 			tf_logger.log("Refreshing feeds...", TextFieldLogger.StandardStyle);
 			Message msg_feedRequest = new Message(Type.Request, Value.Feeds);
 			mx_executor.send(msg_feedRequest);
-			break;		
-		default:
-			break;
-		};
+		}
 	}
 	
 	private void sendLogsRequest()
