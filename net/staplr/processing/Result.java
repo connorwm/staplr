@@ -164,7 +164,7 @@ public class Result
 					
 					try
 					{
-						i_occurences = (int)dbo_currentTrendDocument.get(k_keyword.toString());
+						i_occurences = (Integer)dbo_currentTrendDocument.get(k_keyword.toString());
 					}
 					catch (Exception e) 
 					{
