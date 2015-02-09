@@ -25,6 +25,7 @@ public class Log
 	private File f_logFile;
 	private Writer w_logWriter;
 	private boolean b_hasError;
+	private String str_baseDirectory = "/var/www/master/"; // Temporary to see if the old logging system will work
 	
 	public Log()
 	{
@@ -112,7 +113,7 @@ public class Log
 	
 	public void setLogFile(String str_fileName)
 	{
-		f_logFile = new File(str_fileName);
+		f_logFile = new File(str_baseDirectory + str_fileName);
 		
 		b_options[Options.FileOutput.ordinal()] = true;
 		try {
