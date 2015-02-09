@@ -120,6 +120,10 @@ public class SlaveMaster implements Runnable
 						}
 					}
 					
+					// Slaves use quite a bit of memory and a variety of objects over their lifetime
+					// Free up as much memory as possible after we get rid of them
+					System.gc();
+					
 					lh_sm.write("Active slaves: "+arr_slave.size());
 				}
 			}
