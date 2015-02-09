@@ -116,25 +116,27 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				String str_logFile = null;
 				String str_logContents = "";
 				
-				switch (str_logType)
+				if(str_logType == "master")
 				{
-				case "master":
-					str_logFile = "master.log";					
-					break;
-				case "listener":
+					str_logFile = "master.log";	
+				}
+				else if(str_logType == "listener")
+				{
 					str_logFile = "listener.log";
-					break;
-				case "ensurer":
+				}
+				else if(str_logType == "ensurer")
+				{
 					str_logFile = "ensurer.log";
-					break;
-				case "settings":
+				}
+				else if(str_logType == "settings")
+				{
 					str_logFile = "settings.log";
-					break;
-				default:
+				}
+				else
+				{
 					lh_worker.write("Unknown request for log: '"+str_logType+"'");
 					str_logContents = "-- Unknown Log '"+str_logType+"' --";
-					break;
-				};
+				}
 				
 				msg_logContents.addItem("type", str_logType);
 				
@@ -254,25 +256,27 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				String str_logContents = String.valueOf(msg_message.get("contents"));
 				TextArea ta_log = null;
 				
-				switch (str_logType)
+				if(str_logType == "master")
 				{
-				case "master":
 					ta_log = (TextArea) fi_main.get("log_master");
-					break;
-				case "listener":
+				}
+				else if(str_logType == "listener")
+				{
 					ta_log = (TextArea) fi_main.get("log_listener");
-					break;
-				case "ensurer":
+				}
+				else if(str_logType == "ensurer")
+				{
 					ta_log = (TextArea) fi_main.get("log_ensurer");
-					break;
-				case "settings":
+				}
+				else if(str_logType == "settings")
+				{
 					ta_log = (TextArea) fi_main.get("log_settings");
-					break;
-				default:
+				}
+				else
+				{
 					lh_worker.write("ERROR: Unknown log type received back: '"+str_logType+"'");
 					super.respondInvalid(msg_message);
-					break;
-				};
+				}
 				
 				if(ta_log != null)
 				{
@@ -329,7 +333,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 							if(str_feed != null) 
 							{
 								String str_collection = "";
-								boolean b_parsed = false;							
+								boolean b_parsed = false;						
 
 								try{
 									str_collection = str_feed.substring(0, str_feed.indexOf(":"));
