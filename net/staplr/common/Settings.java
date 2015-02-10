@@ -12,6 +12,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import net.staplr.common.DatabaseAuth.Properties;
+import net.staplr.logging.Entry;
 import net.staplr.logging.Log;
 import net.staplr.logging.Log.Options;
 import net.staplr.logging.LogHandle;
@@ -90,7 +91,7 @@ public class Settings
 				if(document == null)
 				{
 					//System.out.println("Document is null :P");
-					lh_settings.write("Fatal Error: settings document is null");
+					lh_settings.write(Entry.Type.Error, "Fatal Error: settings document is null");
 					b_loadStatus = false;
 				} else {
 					Element rootElement = document.getDocumentElement();
@@ -222,7 +223,7 @@ public class Settings
 					}
 					catch (Exception e) 
 					{
-						lh_settings.write("Failed to Connect:\r\n"+e.toString());
+						lh_settings.write(Entry.Type.Error, "Failed to Connect:\r\n"+e.toString());
 						b_loadStatus = false;
 					} 
 					finally
@@ -237,7 +238,7 @@ public class Settings
 							
 							if(dbo_settings == null)
 							{
-								lh_settings.write("Could not find Master settings document");
+								lh_settings.write(Entry.Type.Error, "Could not find Master settings document");
 								b_loadStatus = false;
 							}
 							else
@@ -265,7 +266,7 @@ public class Settings
 											if(auth_new == null)
 											{
 												auth_new = new DatabaseAuth();
-												lh_settings.write("\tNOTICE: No password for this database was loaded from local settings; password unknown");
+												lh_settings.write(Entry.Type.Warning, "\tNOTICE: No password for this database was loaded from local settings; password unknown");
 											}
 											
 											for(int i_authChildIndex = 0; i_authChildIndex < dbo_databaseAuth.keySet().size(); i_authChildIndex++)
@@ -335,7 +336,7 @@ public class Settings
 						}
 						else
 						{
-							lh_settings.write("Authentication Failed:\r\n"+db_settings.getLastError().toString());
+							lh_settings.write(Entry.Type.Error, "Authentication Failed:\r\n"+db_settings.getLastError().toString());
 							b_loadStatus = false;
 						}
 					}
@@ -401,7 +402,7 @@ public class Settings
 		} 
 		catch (IOException ioe_open)
 		{
-			lh_settings.write("Error: Could not open exclusions.txt to read ignore words");
+			lh_settings.write(Entry.Type.Error, "Could not open exclusions.txt to read ignore words");
 			b_loadedWords = true;
 		}
 		
@@ -418,9 +419,14 @@ public class Settings
 			} 
 			catch (IOException e) 
 			{
-				lh_settings.write("Error: Could not parse/read all ignore words in exclusions file");
+				lh_settings.write(Entry.Type.Error, "Could not parse/read all ignore words in exclusions file");
 				b_loadedWords = false;
 			}
+			
+			try {
+				if(br_exclusionList.ready())	br_exclusionList.close();
+			}
+			catch (Exception e) {}
 		}
 		
 		return b_loadedWords;

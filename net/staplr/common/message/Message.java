@@ -71,12 +71,6 @@ public class Message
 		b_receivedResponse = false;
 		b_requiresResponse = false;
 		
-		// Unescape \" dem thangs
-//		while(str_message.contains("\\\""))
-//		{
-//			str_message = str_message.replace("\\\"", "\"");
-//		}
-		
 		try{
 			json_message = (JSONObject)JSONValue.parse(str_message);		
 		} catch (Exception e) {
@@ -118,7 +112,6 @@ public class Message
 				}
 			} else {
 				// Unknown message type
-				System.out.println("Unknown message type");
 				b_isValid = false;
 			}
 		}

@@ -18,6 +18,7 @@ import net.staplr.common.feed.FeedDocument;
 import net.staplr.common.feed.Link;
 import net.staplr.common.feed.Link.Properties;
 import net.staplr.logging.Log;
+import net.staplr.logging.Entry.Type;
 import net.staplr.logging.LogHandle;
 import net.staplr.master.DatabaseExecutor;
 import net.staplr.processing.Processor;
@@ -103,7 +104,7 @@ public class Slave implements Runnable
 		{
 			// We'll need to know the date format
 			String str_feedDateFormat = String.valueOf(f_feed.get(Feed.Properties.dateFormat));
-			Downloader feedDownloader = new Downloader(f_feed.get(Feed.Properties.url), s_settings, str_feedDateFormat);
+			Downloader feedDownloader = new Downloader(f_feed.get(Feed.Properties.url), s_settings, str_feedDateFormat, lh_slave);
 
 			// Now run it
 			if(!feedDownloader.run())
@@ -133,7 +134,7 @@ public class Slave implements Runnable
 				}
 				else 
 				{
-					lh_slave.write("Failed to update feed document of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"; Last Error:\r\n"+updateResult.getError());
+					lh_slave.write(Type.Error, "Failed to update feed document of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"; Last Error:\r\n"+updateResult.getError());
 				}
 				
 				//--------------------------------------------------------------------------
@@ -217,7 +218,7 @@ public class Slave implements Runnable
 				}
 			}
 		} else {
-			lh_slave.write("\tError: URL is null");
+			lh_slave.write(Type.Error, "\tURL is null");
 		}
 		
 		System.gc();
@@ -498,14 +499,14 @@ public class Slave implements Runnable
 		} 
 		catch (MongoException excep_m)
 		{
-			lh_slave.write("Failed to update statistics for "+f_feed.get(Feed.Properties.name)+" due to MongoException: "+excep_m.toString());
+			lh_slave.write(Type.Error, "Failed to update statistics for "+f_feed.get(Feed.Properties.name)+" due to MongoException: "+excep_m.toString());
 		}
 		finally
 		{
 			if(wr_result.getN() == 1) lh_slave.write("Successfully updated statistics for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
 			else 
 			{
-				lh_slave.write("Failed to update statistics for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"\r\nN: "+wr_result.getN()+"\r\n"+wr_result.getError());
+				lh_slave.write(Type.Error, "Failed to update statistics for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"\r\nN: "+wr_result.getN()+"\r\n"+wr_result.getError());
 			}
 		}
 	}
@@ -527,7 +528,7 @@ public class Slave implements Runnable
 			// Only update the statistics when we actually successfully post
 			updateStatistics(f_feed, dbo_feedStatistics, col_feedStatistics);
 		} else {
-			lh_slave.write("Could not post entries for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"; Last error:\r\n"+insertResult.getError());
+			lh_slave.write(Type.Error, "Could not post entries for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"; Last error:\r\n"+insertResult.getError());
 		}
 	}
 	

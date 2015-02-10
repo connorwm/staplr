@@ -51,7 +51,8 @@ public class Log
 		arr_entry.add(e_entry);
 		
 		if(b_options[Options.ConsoleOutput.ordinal()]) {
-			System.out.println(e_entry.toString());
+			if(Error.class.isInstance(e_entry))	System.err.println(e_entry.toString());
+			else	System.out.println(e_entry.toString());
 		}
 		if(b_options[Options.FileOutput.ordinal()])	{
 			synchronized (w_logWriter)
@@ -119,11 +120,7 @@ public class Log
 		try {
 			w_logWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(f_logFile, true)));
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			e.printStackTrace(System.err);
 		}
 	}
 	

@@ -182,7 +182,7 @@ public class MessageExecutor
 			msg_message.markAsSent();
 			msg_outbox.add(msg_message);
 		} else {
-			lh_worker.write("Failed to send: "+msg_message.toString()+"\r\n"+sc_client.getLastError().toString());
+			lh_worker.write(Entry.Type.Error, "Failed to send: "+msg_message.toString()+"\r\n"+sc_client.getLastError().toString());
 		}
 	}
 	

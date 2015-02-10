@@ -1,11 +1,9 @@
 package net.staplr.common.feed;
 
 
-import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import net.staplr.common.message.Message;
-import net.staplr.logging.Entry;
 
 public class Item implements Comparable
 {
@@ -20,14 +18,14 @@ public class Item implements Comparable
 	
 	public int compareTo(Object item_other)
 	{
-		Date d_this = null;
+		Date d_this = d_timeSent;
 		Date d_other = null;
 		
 		try{
-			d_this = d_timeSent;
 			d_other = ((Item)item_other).getTimeSent();
 		} catch (Exception e) {
-			// TODO idk bruh
+			System.err.println("Could not get time sent from comparing Item");
+			return 0;
 		} 
 		
 		if(d_timeSent.equals(((Item)item_other).getTimeSent())) return 0;
