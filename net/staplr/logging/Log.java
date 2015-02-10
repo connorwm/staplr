@@ -25,7 +25,8 @@ public class Log
 	private File f_logFile;
 	private Writer w_logWriter;
 	private boolean b_hasError;
-	private String str_baseDirectory = "/var/www/master/"; // Temporary to see if the old logging system will work
+	private String str_baseDirectory = "/var/www/master/";
+	private String str_fileName;
 	
 	public Log()
 	{
@@ -43,7 +44,7 @@ public class Log
 	{
 		this();
 		
-		setLogFile(str_fileName);
+		this.str_fileName = str_fileName;
 	}
 	
 	public synchronized void write(Entry e_entry)
@@ -58,12 +59,16 @@ public class Log
 		if(b_options[Options.FileOutput.ordinal()])	{
 			synchronized (w_logWriter)
 			{
+				open();
+				
 				try {
 					w_logWriter.write(e_entry.toString()+"\r\n");
 					w_logWriter.flush();
 				} catch (IOException e) {
-					e.printStackTrace();
+					e.printStackTrace(System.err);
 				}
+				
+				close();
 			}
 			
 		}
@@ -74,7 +79,20 @@ public class Log
 		}
 	}
 	
-	public synchronized void close()
+	
+	public void open()
+	{
+		f_logFile = new File(str_baseDirectory + str_fileName);
+		
+		b_options[Options.FileOutput.ordinal()] = true;
+		try {
+			w_logWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(f_logFile, true)));
+		} catch (FileNotFoundException e) {
+			e.printStackTrace(System.err);
+		}
+	}
+	
+	public void close()
 	{
 		if(b_options[Options.SaveOnlyOnError.ordinal()] && b_hasError)
 		{
@@ -87,7 +105,7 @@ public class Log
 				} 
 				catch (IOException e) 
 				{
-					e.printStackTrace();
+					e.printStackTrace(System.err);
 				}
 			}
 		}
@@ -112,19 +130,7 @@ public class Log
 			b_options[option.ordinal()] = b_value;
 		}
 	}
-	
-	public void setLogFile(String str_fileName)
-	{
-		f_logFile = new File(str_baseDirectory + str_fileName);
-		
-		b_options[Options.FileOutput.ordinal()] = true;
-		try {
-			w_logWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(f_logFile, true)));
-		} catch (FileNotFoundException e) {
-			e.printStackTrace(System.err);
-		}
-	}
-	
+
 	public boolean isEnabled(Options option)
 	{
 		synchronized (b_options)
