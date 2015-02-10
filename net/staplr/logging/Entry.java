@@ -9,7 +9,8 @@ public class Entry implements Comparable
 	public enum Type{
 		Error,
 		Status,
-		Statistic
+		Statistic,
+		Warning
 	}
 	
 	private String str_source;
