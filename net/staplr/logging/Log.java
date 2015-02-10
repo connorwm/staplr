@@ -52,7 +52,7 @@ public class Log
 		
 		if(b_options[Options.ConsoleOutput.ordinal()]) {
 			if(Error.class.isInstance(e_entry))	System.err.println(e_entry.toString());
-			else if (Warning.class.isInstance(e_entry)) System.err.println(e_entry.toString());
+			else if (Warning.class.isInstance(e_entry)) System.out.println(e_entry.toString());
 			else	System.out.println(e_entry.toString());
 		}
 		if(b_options[Options.FileOutput.ordinal()])	{
