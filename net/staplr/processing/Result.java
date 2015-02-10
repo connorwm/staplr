@@ -98,17 +98,16 @@ public class Result
 //				else lh_proccessor.write("Failed to associate '"+k_word.toString()+"' with "+str_entryFeed+":"+str_entryID);
 				
 				//TEMP: For debug only:
-				System.out.println("Posted: "+k_word.toString());
+				lh_processor.write("Posted: "+k_word.toString());
 			}
 			else
 			{
-				lh_processor.write("Failed to get collection for '"+k_word.toString()+"'");
+				lh_processor.write(Type.Error, "Failed to get collection for '"+k_word.toString()+"'");
 			}
 		}
 		
 		// TEMP: Do not post for now until bugs have been worked out
-		// TEMP: Allow it
-		postTrendData(arr_keyword);
+		//postTrendData(arr_keyword);
 	}
 	
 	private DBCollection getCollection(String str_name)
@@ -164,7 +163,7 @@ public class Result
 					
 					try
 					{
-						i_occurences = (int)dbo_currentTrendDocument.get(k_keyword.toString());
+						i_occurences = (Integer)dbo_currentTrendDocument.get(k_keyword.toString());
 					}
 					catch (Exception e) 
 					{
