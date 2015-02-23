@@ -38,8 +38,10 @@ public class Master implements Runnable
 	
 	public Master()
 	{
-		l_main = new Log("master.log");
+		l_main = new Log();
 		l_main.setOption(Log.Options.ConsoleOutput, false);
+		l_main.setOption(Log.Options.FileOutput, true);
+		
 		lh_master = new LogHandle("mas", l_main);
 		
 		s_settings = new Settings(l_main);
