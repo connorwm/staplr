@@ -14,6 +14,8 @@ import java.util.Iterator;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
@@ -59,8 +61,16 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 	@Override
 	public void executeAsPer(Message msg_message)
 	{
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		//
+		//	REQUEST
+		//
+		//////////////////////////////////////////////////////////////////////////////////////////////////
 		if(msg_message.getType() == Message.Type.Request)
 		{
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			//	SETTINGS
+			//////////////////////////////////////////////////////////////////////////////////////////////////
 			if(msg_message.getValue() == Message.Value.Settings)
 			{
 				Message msg_settings = new Message(Type.Response, Value.Settings);
@@ -83,8 +93,13 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				super.send(msg_settings);
 				msg_message.setRespondedTo();
 			}
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			//	UPDATE SETTINGS
+			//////////////////////////////////////////////////////////////////////////////////////////////////
 			if(msg_message.getValue() == Message.Value.UpdateSettings)
 			{
+				lh_worker.write("Updating settings...");
+				
 				DatabaseAuth auth_settingsDB = new DatabaseAuth();
 				JSONObject json_auth = (JSONObject)msg_message.get("databaseAuth");
 				
@@ -105,47 +120,28 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 						s_settings.set(Setting.values()[i_settingIndex], (String)msg_message.get(Settings.Setting.values()[i_settingIndex].toString()));
 					}
 				}
+				
+				lh_worker.write("\tComplete");
 			}
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			//	LOGS
+			//////////////////////////////////////////////////////////////////////////////////////////////////
 			if(msg_message.getValue() == Message.Value.Logs)
 			{
 				Message msg_logContents = new Message(Type.Response, Value.Logs);
-				String str_logType = String.valueOf(msg_message.get("log"));
 				InputStream is_log = null;
 				BufferedReader br = null;
+				DateTime dt_now = new DateTime(DateTimeZone.getDefault());
 				String str_logLine = null;
-				String str_logFile = null;
+				String str_logFile = "/var/www/master/staplr-" + dt_now.toString("M.d.y") + ".log"; // TODO Hard coded value of directory
 				String str_logContents = "";
-				
-				if(str_logType == "master")
-				{
-					str_logFile = "master.log";	
-				}
-				else if(str_logType == "listener")
-				{
-					str_logFile = "listener.log";
-				}
-				else if(str_logType == "ensurer")
-				{
-					str_logFile = "ensurer.log";
-				}
-				else if(str_logType == "settings")
-				{
-					str_logFile = "settings.log";
-				}
-				else
-				{
-					lh_worker.write("Unknown request for log: '"+str_logType+"'");
-					str_logContents = "-- Unknown Log '"+str_logType+"' --";
-				}
-				
-				msg_logContents.addItem("type", str_logType);
 				
 				if(str_logFile != null)
 				{
 					try {
 						is_log = this.getClass().getResourceAsStream(str_logFile);
 					} catch (Exception e) {
-						lh_worker.write("ERROR: Cannot open master log file\r\n"+e.toString());
+						lh_worker.write("ERROR: Cannot open master log file: "+e.toString());
 						str_logContents = "-- Error when Opening Log --";
 					} 
 					finally {
@@ -162,7 +158,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 						}
 						catch (Exception e)
 						{
-							lh_worker.write("ERROR: During reading log file:"+e.toString());
+							lh_worker.write("ERROR: During reading log file: "+e.toString());
 							
 							str_logContents += "-- Error Encountered While Reading --";
 						
@@ -179,19 +175,24 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				msg_logContents.addItem("contents", str_logContents);
 				super.send(msg_logContents);
 			}
-			if(msg_message.getValue() == Message.Value.Disconnect)
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			//	GARBAGE COLLECTION
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			if(msg_message.getValue() == Value.GarbageCollection)
 			{
-				lh_worker.write("Attempting to disconnect");
-				sc_client.disconnect();
-			}
-			if(msg_message.getValue() == Message.Value.GarbageCollection)
-			{
+				lh_worker.write("Running garbage collection...");
 				System.gc();
+				lh_worker.write("\tComplete");
 			}
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			//	FEEDS
+			//////////////////////////////////////////////////////////////////////////////////////////////////
 			if(msg_message.getValue() == Message.Value.Feeds)
 			{
 				Message msg_feedList = new Message(Type.Response, Value.Feeds);
 				JSONArray json_feeds = new JSONArray();
+				
+				lh_worker.write("Received feeds request");
 				
 				for(String str_feed : f_feeds.getAssignments().get("127.0.0.1"))
 				{
@@ -199,9 +200,13 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				}
 				
 				msg_feedList.addItem("feeds", json_feeds);
+				lh_worker.write("Sending back list of "+json_feeds.size()+" feeds");
 				
 				super.send(msg_feedList);
 			}
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			//	DISCONNECT
+			//////////////////////////////////////////////////////////////////////////////////////////////////
 			if(msg_message.getValue() == Message.Value.Disconnect)
 			{
 				lh_worker.write("Client has requested disconnect; disconnecting...");
@@ -221,8 +226,16 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				}
 			}
 		}
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		//
+		//	RESPONSE
+		//
+		//////////////////////////////////////////////////////////////////////////////////////////////////
 		else if(msg_message.getType() == Message.Type.Response)
 		{
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			//	SETTINGS
+			//////////////////////////////////////////////////////////////////////////////////////////////////
 			if(msg_message.getValue() == Message.Value.Settings)
 			{
 				TextFieldLogger tf_logger = fi_main.getLogger();
@@ -250,43 +263,31 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 					e.printStackTrace();
 				}
 			}
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			//	LOGS
+			//////////////////////////////////////////////////////////////////////////////////////////////////
 			if(msg_message.getValue() == Message.Value.Logs)
 			{
-				String str_logType = String.valueOf(msg_message.get("type"));
+				lh_worker.write("Received logs response");
+	
 				String str_logContents = String.valueOf(msg_message.get("contents"));
-				TextArea ta_log = null;
-				
-				if(str_logType == "master")
-				{
-					ta_log = (TextArea) fi_main.get("log_master");
-				}
-				else if(str_logType == "listener")
-				{
-					ta_log = (TextArea) fi_main.get("log_listener");
-				}
-				else if(str_logType == "ensurer")
-				{
-					ta_log = (TextArea) fi_main.get("log_ensurer");
-				}
-				else if(str_logType == "settings")
-				{
-					ta_log = (TextArea) fi_main.get("log_settings");
-				}
-				else
-				{
-					lh_worker.write("ERROR: Unknown log type received back: '"+str_logType+"'");
-					super.respondInvalid(msg_message);
-				}
+				TextArea ta_log = (TextArea) fi_main.get("log");
 				
 				if(ta_log != null)
 				{
+					lh_worker.write("Updating logs pane...");
 					ta_log.setText(str_logContents);
 					ta_log.setCaretPosition(str_logContents.length()-1);
-				}
+					lh_worker.write("\tComplete");
+					
+				} else lh_worker.write("Logs response is empty");
 			}
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			//	FEEDS
+			//////////////////////////////////////////////////////////////////////////////////////////////////
 			if(msg_message.getValue() == Message.Value.Feeds)
 			{
-				lh_worker.write("Received feeds response!");
+				lh_worker.write("Received feeds response");
 				
 				JTextArea ta_feeds = (JTextArea)fi_main.get("ta_feeds");
 				String str_feeds = "";
@@ -298,7 +299,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				}
 				catch(Exception e)
 				{
-					lh_worker.write("Failed to convert?");
+					lh_worker.write("Failed to convert to JSON array object");
 					e.printStackTrace();
 				}
 				
