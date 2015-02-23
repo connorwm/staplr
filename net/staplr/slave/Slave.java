@@ -53,8 +53,6 @@ public class Slave implements Runnable
 	private Log l_main;
 	private DatabaseExecutor dx_executor;
 	
-	private Future<?> ftr_future;
-	
 	public Slave(Feed f_feed, DatabaseExecutor dx_executor, Settings s_settings, Log l_main)
 	{
 		this.f_feed = f_feed;
@@ -546,15 +544,5 @@ public class Slave implements Runnable
 		}
 		
 		lh_slave.write("Processing complete");
-	}
-	
-	public void setFuture(Future<?> ftr_future)
-	{
-		this.ftr_future = ftr_future;
-	}
-	
-	public Future<?> getFuture()
-	{
-		return ftr_future;
 	}
 }
