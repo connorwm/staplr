@@ -80,20 +80,13 @@ public class MasterServiceWindow {
 	private JButton btnUpdateSettings;
 	private JScrollPane scrl_masterLogs;
 	private JTabbedPane tab_logs;
+	private TextArea ta_log;
 	private JScrollPane scrl_operations;
 	private JPanel pnl_operations;
 	private JLabel lblInstance;
 	private JButton btnGarbageCollection;
 	private JLabel lblServlet;
 	private JButton btnRestart;
-	private JScrollPane scrl_masterLog;
-	private JScrollPane scrl_settingsLog;
-	private JScrollPane scrl_listenerLog;
-	private JScrollPane scrl_ensurerLog;
-	private TextArea ta_settingsLog;
-	private TextArea ta_ensurerLog;
-	private TextArea ta_listenerLog;
-	private TextArea ta_masterLog;
 	private JScrollPane scrl_feeds;
 	private JTextArea ta_feeds;
 
@@ -114,10 +107,7 @@ public class MasterServiceWindow {
 		fi_main.put("masterCommunicationPort", txtCommunicationPort);
 		fi_main.put("servicePort", txtServicePort);
 		fi_main.put("masterKey", txtKey);
-		fi_main.put("log_master", ta_masterLog);
-		fi_main.put("log_listener", ta_listenerLog);
-		fi_main.put("log_ensurer", ta_ensurerLog);
-		fi_main.put("log_settings", ta_settingsLog);
+		fi_main.put("log", ta_log);
 		fi_main.put("ta_feeds", ta_feeds);
 		
 		mx_executor.setFormIntermediary(fi_main);
@@ -157,10 +147,7 @@ public class MasterServiceWindow {
 		// ----------------------------------------------------
 		
 		// Request Settings
-		tf_logger.log("Requesting settings...", TextFieldLogger.StandardStyle);
-		Message msg_settingsRequest = new Message(Type.Request, Value.Settings);
-		mx_executor.send(msg_settingsRequest);
-		tf_logger.log("Sent", TextFieldLogger.StandardStyle);
+		refreshPane(); // Settings pane is default pane on startup
 		
 		// Request all other
 		sendLogsRequest();
@@ -352,42 +339,19 @@ public class MasterServiceWindow {
 		txt_log.setEditable(false);
 		scrl_log.setViewportView(txt_log);
 
+		// Remote Logs Tab
 		scrl_masterLogs = new JScrollPane();
-		tab_main.addTab("Logs", scrl_masterLogs);
+		tab_main.addTab("Log", scrl_masterLogs);
 		
 		tab_logs = new JTabbedPane(JTabbedPane.TOP);
 		scrl_masterLogs.setViewportView(tab_logs);
 		
-		scrl_masterLog = new JScrollPane();
-		tab_logs.addTab("Master", null, scrl_masterLog, null);
+		ta_log = new TextArea();
+		ta_log.setEditable(false);
+		scrl_masterLogs.setViewportView(ta_log);
 		
-		scrl_settingsLog = new JScrollPane();
-		tab_logs.addTab("Settings", null, scrl_settingsLog, null);
-		
-		scrl_listenerLog = new JScrollPane();
-		tab_logs.addTab("Listener", null, scrl_listenerLog, null);
-		
-		scrl_ensurerLog = new JScrollPane();
-		tab_logs.addTab("Ensurer", null, scrl_ensurerLog, null);
-		
-		ta_settingsLog = new TextArea();
-		ta_settingsLog.setEditable(false);
-		scrl_settingsLog.setViewportView(ta_settingsLog);
-		
-		ta_ensurerLog = new TextArea();
-		ta_ensurerLog.setEditable(false);
-		scrl_ensurerLog.setViewportView(ta_ensurerLog);
-		
-		ta_listenerLog = new TextArea();
-		ta_listenerLog.setEditable(false);
-		scrl_listenerLog.setViewportView(ta_listenerLog);
-		
-		ta_masterLog = new TextArea();
-		ta_masterLog.setEditable(false);
-		scrl_masterLog.setViewportView(ta_masterLog);
-		
+		// Operations Tab
 		scrl_operations = new JScrollPane();
-		
 		tab_main.addTab("Operations", scrl_operations);
 		
 		pnl_operations = new JPanel();
@@ -432,7 +396,6 @@ public class MasterServiceWindow {
 		tf_logger.log("Sending feeds request...", TextFieldLogger.StandardStyle);
 		Message msg_requestFeeds = new Message(Type.Request, Value.Feeds);
 		mx_executor.send(msg_requestFeeds);
-		tf_logger.log("Sent", TextFieldLogger.StandardStyle);
 	}
 	
 	private void sendGCRequest()
@@ -481,26 +444,19 @@ public class MasterServiceWindow {
 			Message msg_feedRequest = new Message(Type.Request, Value.Feeds);
 			mx_executor.send(msg_feedRequest);
 		}
+		else if(str_currentTab == "Log")
+		{
+			tf_logger.log("Refreshing log...", TextFieldLogger.StandardStyle);
+			Message msg_feedRequest = new Message(Type.Request, Value.Logs);
+			mx_executor.send(msg_feedRequest);
+		}
 	}
 	
 	private void sendLogsRequest()
 	{
 		Message msg_logRequest = new Message(Type.Request, Value.Logs);
 		
-		tf_logger.log("Requesting Master Logs...", TextFieldLogger.StandardStyle);
-		msg_logRequest.addItem("log", "master");
-		mx_executor.send(msg_logRequest);
-		
-		tf_logger.log("Requesting Listener Logs...", TextFieldLogger.StandardStyle);
-		msg_logRequest.addItem("log", "listener");
-		mx_executor.send(msg_logRequest);
-		
-		tf_logger.log("Requesting Ensurer Logs...", TextFieldLogger.StandardStyle);
-		msg_logRequest.addItem("log", "ensurer");
-		mx_executor.send(msg_logRequest);
-		
-		tf_logger.log("Requesting Settings Logs...", TextFieldLogger.StandardStyle);
-		msg_logRequest.addItem("log", "settings");
+		tf_logger.log("Requesting Log...", TextFieldLogger.StandardStyle);
 		mx_executor.send(msg_logRequest);
 	}
 
