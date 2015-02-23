@@ -68,12 +68,7 @@ public class Communicator implements Runnable
 		b_run = true;
 		arr_worker = new ArrayList<Worker>();
 		arr_client = new ArrayList<DefaultSocketConnection>();
-		
-		if(t_type == Type.Service)
-		{
-			System.out.println("Starting as service on port "+i_port);
-		}
-		
+
 		// TODO
 		if(sc_listener.getLastError() != null){
 			lh_communication.write(Entry.Type.Error, sc_listener.getLastError().toString());
@@ -94,7 +89,7 @@ public class Communicator implements Runnable
 				addClient(sc_listener.accept(), false);
 			}
 		} else {
-			lh_communication.write("ERROR: Not bound");
+			lh_communication.write(Entry.Type.Error, "Listener not bound for "+t_type.toString() + " on port " + sc_listener.getPort());
 		}
 	}
 	
@@ -164,7 +159,7 @@ public class Communicator implements Runnable
 			return w_new.mx_executor;
 		}
 		 else {
-			 lh_communication.write("ERROR: Failed to connect to "+sc_new.getAddress());
+			 lh_communication.write(Entry.Type.Error, "Failed to connect to "+sc_new.getAddress());
 		}
 		
 		return null;
@@ -247,7 +242,7 @@ public class Communicator implements Runnable
 		
 		if(!arr_client.removeAll(arr_toBeRemoved))
 		{
-			lh_communication.write("ERROR: Failed to remove all of closed connections from master's client array (Removal Queue: "+arr_toBeRemoved.size()+"; Total Size: "+(i_connectionCount + arr_toBeRemoved.size())+")");
+			lh_communication.write(Entry.Type.Error, "Failed to remove all of closed connections from master's client array (Removal Queue: "+arr_toBeRemoved.size()+"; Total Size: "+(i_connectionCount + arr_toBeRemoved.size())+")");
 		}
 		
 		return i_connectionCount;

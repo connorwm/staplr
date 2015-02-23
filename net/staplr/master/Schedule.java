@@ -60,9 +60,11 @@ public class Schedule
 		// Just saying :P 
 		// 11/24/2012 9:30 PM
 
-		// Just was biotch!
 		// Haha about 6 months off
 		// 6/29/2013 9:41 PM
+		
+		// Hmm, not sure what I was rambling about here
+		// 2/10/15 3:21 AM
 		
 		items.add(item);		
 	}

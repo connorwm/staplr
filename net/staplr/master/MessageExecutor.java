@@ -228,7 +228,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 					}
 					else
 					{
-						lh_worker.write("Not connected to master");
+						lh_worker.write(Entry.Type.Error, "Not connected to master");
 						str_connectionStatus = "down";
 					}
 					
@@ -240,7 +240,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				}
 				else
 				{
-					lh_worker.write("Invalid ConnectionCheck: no address specified");
+					lh_worker.write(Entry.Type.Error, "Invalid ConnectionCheck: no address specified");
 					respondInvalid(msg_message);
 				}
 			}
@@ -263,7 +263,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 						}
 						catch (Exception e)
 						{
-							lh_worker.write("Invalid redistribute number: could not be converted to an integer");
+							lh_worker.write(Entry.Type.Error, "Invalid redistribute number: could not be converted to an integer");
 							respondInvalid(msg_message);
 						}
 
@@ -304,7 +304,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 								{
 									if(!c_communicator.sendTo(str_currentAddress, msg_alreadyAssigned))
 									{
-										lh_worker.write("Failed to send to master at "+str_currentAddress+": does not exist/not connected");
+										lh_worker.write(Entry.Type.Error, "Failed to send to master at "+str_currentAddress+": does not exist/not connected");
 									}
 									else
 									{
@@ -407,6 +407,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 					else
 					{
 						e.printStackTrace();
+						lh_worker.write(Entry.Type.Error, "Invalid masters list received in Sync response");
 						super.respondInvalid(msg_message);
 					}
 				}
@@ -422,15 +423,12 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 						JSONObject json_master = (JSONObject)json_masters.get(i_masterIndex);
 						Credentials c_credential = new Credentials();
 						
-						System.out.println("\tGot the object");
-						
 						try{
 							c_credential.set(Credentials.Properties.location, String.valueOf(json_master.get("address")));
 							c_credential.set(Credentials.Properties.port, String.valueOf((Long)json_master.get("port")));
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
-						System.out.println("\tSet the properties:\r\n"+c_credential.toString());
 
 						for(int i_credentialIndex = 0; i_credentialIndex < s_settings.c_credentials.size(); i_credentialIndex++)
 						{
@@ -448,7 +446,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 
 									if(mx_executor != null)
 									{
-										lh_worker.write("Connected; initiating FeedDistribute");
+										lh_worker.write("Connected; initiating FeedDistribute...");
 										
 										Message msg_feedDistribute = new Message(Type.Request, Value.FeedDistribute);
 										mx_executor.send(msg_feedDistribute);
@@ -477,8 +475,8 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				}
 				catch (Exception e)
 				{
-					e.printStackTrace();
-					lh_worker.write("Invalid Feeds message; sending response");
+					e.printStackTrace(System.err);
+					lh_worker.write(Entry.Type.Error, "Invalid Feeds message; sending response");
 					super.respondInvalid(msg_message);
 				}
 				finally
@@ -567,7 +565,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				}
 				else
 				{
-					lh_worker.write("Failed to update feeds for "+sc_client.getAddress());
+					lh_worker.write(Entry.Type.Error, "Failed to update feeds for "+sc_client.getAddress());
 				}
 			}
 			//////////////////////////////////////////////////////////////////////////////////////////////////
@@ -584,7 +582,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				}
 				else
 				{
-					lh_worker.write("Invalid ConnectionCheck Response, missing information:\n\tAddress: "+str_address+"\n\tStatus: "+str_connectionStatus);
+					lh_worker.write(Entry.Type.Error, "Invalid ConnectionCheck Response, missing information:\n\tAddress: "+str_address+"\n\tStatus: "+str_connectionStatus);
 					respondInvalid(msg_message);
 				}
 			}
@@ -602,7 +600,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				}
 				else
 				{
-					lh_worker.write("DuplicateNumber message is invalid: missing address of downed master");
+					lh_worker.write(Entry.Type.Error, "DuplicateNumber message is invalid: missing address of downed master");
 					respondInvalid(msg_message);
 				}
 			}

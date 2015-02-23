@@ -113,7 +113,7 @@ public class FeedParser
 	
 	private void setTimestamp()
 	{
-		// Timestamp sacrifices a handful of bytes for optimization and code-saving
+		// Timestamp sacrifices a few handfuls of bytes for optimization and code-saving
 		// (Seconds since UNIX epoch)
 		lh_slave.write("Creating timestamp for Feed and FeedDocument");
 		DateTimeFormatter dtf = DateTimeFormat.forPattern((String)f_feed.get(Feed.Properties.dateFormat));
@@ -136,9 +136,6 @@ public class FeedParser
 				}
 			}
 		}
-
-		// TEMPORARY: Force it to get the most recent one from the entries
-		//l_timestamp = 0L;
 
 		if(l_timestamp == 0L)
 		{

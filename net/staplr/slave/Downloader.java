@@ -15,6 +15,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import net.staplr.common.Settings;
 import net.staplr.common.Settings.Setting;
 import net.staplr.common.feed.FeedDocument;
+import net.staplr.logging.LogHandle;
 
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
@@ -36,6 +37,7 @@ public class Downloader implements ErrorProne
 	private String feedDateFormat;
 	private Document doc_feed;
 	private FeedDocument fd_feed;
+	private LogHandle lh_slave;
 	
 	private Error lastError;
 	
@@ -43,11 +45,12 @@ public class Downloader implements ErrorProne
 	 * @author murphyc1
 	 * @param str_location
 	 */
-	public Downloader(String str_location, Settings settings, String feedDateFormat)
+	public Downloader(String str_location, Settings settings, String feedDateFormat, LogHandle lh_slave)
 	{
 		this.str_location = str_location;		
 		this.settings = settings;
 		this.feedDateFormat = feedDateFormat;
+		this.lh_slave = lh_slave;
 	}
 	
 	/**Sets in motion the Downloader thread
@@ -74,7 +77,7 @@ public class Downloader implements ErrorProne
 	private boolean buildConnection()
 	{
 		try {
-			System.out.println("Going to connect to:\""+str_location+"\"");
+			lh_slave.write("Going to connect to:\""+str_location+"\"");
 			con_connection = (HttpURLConnection)new URL(str_location).openConnection();
 			con_connection.setRequestMethod("GET");
 			con_connection.setDoInput(true);
@@ -110,13 +113,13 @@ public class Downloader implements ErrorProne
 			} finally {
 				if(connectionStatus == HttpURLConnection.HTTP_ACCEPTED || connectionStatus == HttpURLConnection.HTTP_OK)
 				{
-					System.out.println("\tConnected");
+					lh_slave.write("\tConnected");
 					try{
 						br_connectionReader = new BufferedReader(new InputStreamReader(con_connection.getInputStream(), "UTF-8"));
 					} catch (Exception e) {
 						lastError = new Error("br_connectionReader", Error.Type.Initiation, e.toString());
 					} finally {
-						System.out.println("\tCreated Reader");
+						lh_slave.write("\tCreated Reader");
 					}
 				} else {
 					lastError = new Error("con_connection", Error.Type.Connection, "Status "+connectionStatus);

@@ -38,8 +38,10 @@ public class Master implements Runnable
 	
 	public Master()
 	{
-		l_main = new Log("master.log");
-		l_main.setOption(Log.Options.ConsoleOutput, true);
+		l_main = new Log();
+		l_main.setOption(Log.Options.ConsoleOutput, false);
+		l_main.setOption(Log.Options.FileOutput, true);
+		
 		lh_master = new LogHandle("mas", l_main);
 		
 		s_settings = new Settings(l_main);
@@ -55,7 +57,7 @@ public class Master implements Runnable
 		}
 		else
 		{
-			lh_master.write("Failed to Start: settings not loaded");
+			lh_master.write(Type.Error, "Failed to Start: settings not loaded");
 		}
 	}
 	
@@ -67,8 +69,8 @@ public class Master implements Runnable
 		  {
 			  master.startup(args[0]);
 		  }  else {
-			  System.out.println("Not enough parameters (1 needed)");
-			  System.out.println("Parameter 1: first or join");
+			  System.err.println("Not enough parameters (1 needed)");
+			  System.err.println("Parameter 1: first or join");
 		  }
 	}
 	
@@ -86,7 +88,7 @@ public class Master implements Runnable
 
 					this.run();
 				} else {
-					lh_master.write("Failed to download feeds; will not run");
+					lh_master.write(Type.Error, "Failed to download feeds; will not run");
 				}
 			} else if (str_startType.equals("join")) {
 				lh_master.write("Starting as join");
@@ -100,7 +102,7 @@ public class Master implements Runnable
 		}
 		else
 		{
-			lh_master.write("Could not fully connect to databases");
+			lh_master.write(Type.Error, "Could not fully connect to databases");
 		}
 	}
 	
@@ -116,7 +118,7 @@ public class Master implements Runnable
 			
 			lh_master.write("Components launched");
 		} else {
-			lh_master.write(Entry.Type.Error, "Could not fully connect to databases: "+dx_executor.getLastError());
+			lh_master.write(Type.Error, "Could not fully connect to databases: "+dx_executor.getLastError());
 		}
 	}
 	

@@ -11,6 +11,8 @@ import org.joda.time.DateTimeZone;
 import net.staplr.common.Settings;
 import net.staplr.common.Settings.Setting;
 import net.staplr.common.feed.Feed;
+import net.staplr.logging.Entry;
+import net.staplr.logging.Entry.Type;
 import net.staplr.logging.Log;
 import net.staplr.logging.Log.Options;
 import net.staplr.logging.LogHandle;
@@ -67,7 +69,7 @@ public class SlaveMaster implements Runnable
 			
 			if(waittime > 0)
 			{
-				lh_sm.write("Waiting "+waittime+" ms...");
+				lh_sm.write("Waiting " + (waittime * 1000 * 60) + " minutes...");
 				
 				try{
 					Thread.sleep(waittime);
@@ -79,7 +81,7 @@ public class SlaveMaster implements Runnable
 			}
 			else
 			{
-				lh_sm.write("Currently "+Math.abs(waittime)+" ms behind schedule :O");
+				lh_sm.write(Type.Warning, "Currently " + (Math.abs(waittime) * 1000 * 60) + " minutes behind schedule");
 				//lh_sm.write((sch_schedule.getItemCount() > 0)+" - "+(arr_slave.size() < Integer.valueOf((String)s_settings.get(Setting.maxSlaveCount))));
 			}
 			

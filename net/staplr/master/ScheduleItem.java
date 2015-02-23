@@ -10,6 +10,7 @@ import org.joda.time.format.DateTimeFormatter;
 
 import net.staplr.common.feed.Feed;
 import net.staplr.common.feed.Feed.Properties;
+import net.staplr.logging.LogHandle;
 
 public class ScheduleItem implements Comparable
 {
@@ -28,8 +29,8 @@ public class ScheduleItem implements Comparable
 			
 			if(first)
 			{
-				System.out.println(f_feed.get(Properties.collection)+" Last Updated: "+f_feed.getLastDate().toString("HH:mm:ss"));
-				System.out.println(f_feed.get(Properties.collection)+" Goal Time:    "+dt_goalTime.toString("HH:mm:ss"));	
+				//System.out.println(f_feed.get(Properties.collection)+" Last Updated: "+f_feed.getLastDate().toString("HH:mm:ss"));
+				//System.out.println(f_feed.get(Properties.collection)+" Goal Time:    "+dt_goalTime.toString("HH:mm:ss"));	
 			}
 			else
 			{
@@ -39,7 +40,7 @@ public class ScheduleItem implements Comparable
 		}
 		else
 		{
-			System.out.println(f_feed.get(Properties.collection)+" has not been updated before; setting time to now...");
+			//System.out.println(f_feed.get(Properties.collection)+" has not been updated before; setting time to now...");
 			dt_goalTime = new DateTime().now(DateTimeZone.UTC);
 		}
 	}
@@ -83,25 +84,6 @@ public class ScheduleItem implements Comparable
 		{
 			return 1;
 		}
-		
-//		if(goalTime.equals(dt_comparison))
-//		{
-//			i_result = 0;
-//		} 
-//		else if (goalTime.isBefore(dt_comparison))
-//		{
-//			if (Integer.valueOf(si_comparison.getFeed().get(Feed.Properties.ttl)) > ttl)
-//				i_result = -1;
-//			else
-//				i_result = 1;
-//		} 
-//		else if(goalTime.isAfter(dt_comparison))
-//		{
-//			if (Integer.valueOf(si_comparison.getFeed().get(Feed.Properties.ttl)) > ttl)
-//				i_result = 1;
-//			else
-//				i_result = -1;
-//		}
 		
 		return i_result;
 	}

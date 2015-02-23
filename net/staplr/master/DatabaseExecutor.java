@@ -19,6 +19,7 @@ import net.staplr.logging.Log.Options;
 import net.staplr.logging.LogHandle;
 import net.staplr.slave.Slave;
 import net.staplr.common.feed.Feed;
+import net.staplr.logging.Entry;
 
 public class DatabaseExecutor implements ErrorProne
 {
@@ -55,11 +56,12 @@ public class DatabaseExecutor implements ErrorProne
 		} 
 		catch (Exception e) 
 		{
-			lh_dbx.write("Failed to connect to feeds database");
+			lh_dbx.write(Entry.Type.Error, "Failed to connect to feeds database");
 			err_last = new Error("feeds", Error.Type.Initiation, e.toString());
 		}
 		finally 
 		{
+			// Unchecked finally blocks from here down
 			lh_dbx.write("Connected to feeds database");
 			
 			try
@@ -69,7 +71,7 @@ public class DatabaseExecutor implements ErrorProne
 			}
 			catch (Exception e) 
 			{
-				lh_dbx.write("Failed to connect to entries database");
+				lh_dbx.write(Entry.Type.Error, "Failed to connect to entries database");
 				err_last = new Error("entries", Error.Type.Initiation, e.toString());
 			} 
 			finally 
@@ -83,7 +85,7 @@ public class DatabaseExecutor implements ErrorProne
 				}
 				catch (Exception e) 
 				{
-					lh_dbx.write("Failed to connect to statistics database");
+					lh_dbx.write(Entry.Type.Error, "Failed to connect to statistics database");
 					err_last = new Error("statistics", Error.Type.Initiation, e.toString());
 				} 
 				finally 
@@ -97,7 +99,7 @@ public class DatabaseExecutor implements ErrorProne
 					} 
 					catch (Exception e) 
 					{
-						lh_dbx.write("Failed to connect to associations database");
+						lh_dbx.write(Entry.Type.Error, "Failed to connect to associations database");
 						err_last = new Error("associations", Error.Type.Initiation, e.toString());
 					} 
 					finally 
@@ -131,25 +133,25 @@ public class DatabaseExecutor implements ErrorProne
 									}
 									else 
 									{
-										lh_dbx.write("Failed to authorize associations");
+										lh_dbx.write(Entry.Type.Error, "Failed to authorize associations");
 										err_last = new Error("db_entries", Type.Accept, db_entries.getLastError().toString());
 									}
 								}
 								else 
 								{
-									lh_dbx.write("Failed to authorize statistics");
+									lh_dbx.write(Entry.Type.Error, "Failed to authorize statistics");
 									err_last = new Error("db_entries", Type.Accept, db_entries.getLastError().toString());
 								}
 							} 
 							else 
 							{
-								lh_dbx.write("Failed to authorize entries");
+								lh_dbx.write(Entry.Type.Error, "Failed to authorize entries");
 								err_last = new Error("db_entries", Type.Accept, db_entries.getLastError().toString());
 							}
 						} 
 						else 
 						{
-							lh_dbx.write("Failed to authorize feeds");
+							lh_dbx.write(Entry.Type.Error, "Failed to authorize feeds");
 							err_last = new Error("db_feeds", Type.Accept, db_feeds.getLastError().toString());
 						}
 					}

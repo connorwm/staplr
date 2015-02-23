@@ -9,7 +9,8 @@ public class Entry implements Comparable
 	public enum Type{
 		Error,
 		Status,
-		Statistic
+		Statistic,
+		Warning
 	}
 	
 	private String str_source;
@@ -35,7 +36,7 @@ public class Entry implements Comparable
 			d_this = sdf_formatter.parse(str_dateTime);
 			d_other = sdf_formatter.parse(((Entry)e_entry).getDateTime());
 		} catch (Exception e) {
-			// TODO idk bruh
+			System.err.println("Failed to compare log entries: " + e.toString());
 		}
 		
 		if(str_dateTime.equals(((Entry)e_entry).getDateTime())) return 0;

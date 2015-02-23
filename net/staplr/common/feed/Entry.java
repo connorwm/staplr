@@ -202,7 +202,7 @@ public class Entry implements Comparable<Entry>
 		try{
 			d_date = dtf.parseDateTime(str_date);
 		} catch (Exception e) {
-			//log_slave.write(Type.Error, "Could not parse date '"+str_date+"' for feed's specified format");
+			// No need for logging here; will be handled in Slave when the return value is found to be null
 		}
 		
 		return d_date;

@@ -3,6 +3,7 @@ package net.staplr.common;
 import java.util.ArrayList;
 
 import net.staplr.common.Settings;
+import net.staplr.logging.Entry;
 import net.staplr.logging.Log;
 import net.staplr.logging.LogHandle;
 import net.staplr.master.Communication;
@@ -87,13 +88,13 @@ public class Worker implements Runnable
 					}
 					else
 					{
-						lh_worker.write("Received null from client; disconnecting...");
+						lh_worker.write(Entry.Type.Error, "Received null from client; disconnecting...");
 						sc_client.close();
 					}
 				}
 				catch (Exception e)
 				{
-					lh_worker.write("ERROR: Could not receive message:\r\n"+e.toString());					
+					lh_worker.write(Entry.Type.Error, "Could not receive message:\r\n"+e.toString());					
 				}
 				finally
 				{
@@ -105,7 +106,7 @@ public class Worker implements Runnable
 					}
 					else 
 					{
-						lh_worker.write("Received invalid message:\r\n"+msg_received.toString());
+						lh_worker.write(Entry.Type.Error, "Received invalid message:\r\n"+msg_received.toString());
 						
 						Message msg_invalidMessage = new Message(Type.Response, Value.Invalid);
 						msg_invalidMessage.addItem("message", msg_received.toString());

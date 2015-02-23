@@ -8,6 +8,7 @@ import net.staplr.common.message.Message;
 import net.staplr.common.message.Message.Type;
 import net.staplr.common.message.Message.Value;
 import net.staplr.common.Settings;
+import net.staplr.logging.Entry;
 import net.staplr.logging.Log;
 import net.staplr.logging.Log.Options;
 import net.staplr.logging.LogHandle;
@@ -98,7 +99,7 @@ public class MessageEnsurer implements Runnable
 									
 									if(dt_timeSent.plusMinutes(1).isBeforeNow())
 									{
-										lh_worker.write("Message missing required response:\r\n"+msg_out);
+										lh_worker.write(Entry.Type.Error, "Message missing required response:\r\n"+msg_out);
 										
 										Message msg_responseRequest = new Message(Type.Request, Value.ResponseRequest);
 										msg_responseRequest.addItem("message", msg_out.toString());

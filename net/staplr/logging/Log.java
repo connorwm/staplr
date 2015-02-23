@@ -9,6 +9,10 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.ArrayList;
 
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+
 import net.staplr.logging.Entry.Type;
 
 public class Log
@@ -16,54 +20,62 @@ public class Log
 	public enum Options
 	{
 		ConsoleOutput,
-		FileOutput,
-		SaveOnlyOnError
+		FileOutput
 	}
 	
 	private boolean[] b_options;	
-	private ArrayList<Entry> arr_entry;
 	private File f_logFile;
 	private Writer w_logWriter;
 	private boolean b_hasError;
-	private String str_baseDirectory = "/var/www/master/"; // Temporary to see if the old logging system will work
+	private String str_baseDirectory = "/var/www/master/";
+	private String str_fileName;
+	
+	private int i_currentDay;
+	private DateTime dt_local;
 	
 	public Log()
 	{
 		b_options = new boolean[Options.values().length];
-		arr_entry = new ArrayList<Entry>();
 		b_hasError = false;
 		
+		dt_local = new DateTime(DateTimeZone.getDefault());
+		i_currentDay = dt_local.getDayOfMonth();
+				
 		for(int i_optionIndex = 0; i_optionIndex < Options.values().length; i_optionIndex++)
 		{
 			b_options[i_optionIndex] = false;
 		}
-	}
-	
-	public Log(String str_fileName)
-	{
-		this();
 		
-		setLogFile(str_fileName);
+		str_fileName = "staplr-" + dt_local.toString("M.d.y") + ".log";
 	}
 	
 	public synchronized void write(Entry e_entry)
 	{		
-		arr_entry.add(e_entry);
+		if(i_currentDay != dt_local.getDayOfMonth())
+		{
+			// We are on a new day
+			// A new log file is necessary
+			
+			str_fileName = "staplr-" + dt_local.toString("M.d.y") + ".log";
+			i_currentDay = dt_local.getDayOfMonth();
+		}
 		
 		if(b_options[Options.ConsoleOutput.ordinal()]) {
-			System.out.println(e_entry.toString());
+			if(Error.class.isInstance(e_entry))	System.err.println(e_entry.toString());
+			else if (Warning.class.isInstance(e_entry)) System.out.println(e_entry.toString());
+			else	System.out.println(e_entry.toString());
 		}
 		if(b_options[Options.FileOutput.ordinal()])	{
-			synchronized (w_logWriter)
-			{
-				try {
-					w_logWriter.write(e_entry.toString()+"\r\n");
-					w_logWriter.flush();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
+			open();
+
+			try {
+				w_logWriter.write(e_entry.toString()+"\r\n");
+				w_logWriter.flush();
+			} catch (IOException e) {
+				e.printStackTrace(System.err);
 			}
-			
+
+			close();
 		}
 		
 		if(Error.class.isInstance(e_entry)) 
@@ -72,35 +84,32 @@ public class Log
 		}
 	}
 	
-	public synchronized void close()
+	
+	public void open()
 	{
-		if(b_options[Options.SaveOnlyOnError.ordinal()] && b_hasError)
-		{
-			for(int i_entryIndex = 0; i_entryIndex < arr_entry.size(); i_entryIndex++)
-			{
-				try 
-				{
-					w_logWriter.write(arr_entry.get(i_entryIndex).toString()+"\r\n");
-					w_logWriter.flush();
-				} 
-				catch (IOException e) 
-				{
-					e.printStackTrace();
-				}
-			}
+		f_logFile = new File(str_baseDirectory + str_fileName);
+		
+		// Create the file if it is the first time
+		try {
+			f_logFile.createNewFile();
+		} catch (IOException excep_create) {
+			excep_create.printStackTrace(System.err);
+		}
+		
+		try {
+			w_logWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(f_logFile, true)));
+		} catch (FileNotFoundException e) {
+			e.printStackTrace(System.err);
 		}
 	}
 	
-	public String toString()
+	public void close()
 	{
-		String str_asString = new String();
-		
-		for(int i_entryIndex = 0; i_entryIndex < arr_entry.size(); i_entryIndex++)
-		{
-			str_asString += arr_entry.toString() + "\r\n";
+		try {
+			w_logWriter.close();
+		} catch (IOException excep_io) {
+			excep_io.printStackTrace(System.err);
 		}
-		
-		return str_asString;
 	}
 	
 	public void setOption(Options option, boolean b_value)
@@ -110,23 +119,7 @@ public class Log
 			b_options[option.ordinal()] = b_value;
 		}
 	}
-	
-	public void setLogFile(String str_fileName)
-	{
-		f_logFile = new File(str_baseDirectory + str_fileName);
-		
-		b_options[Options.FileOutput.ordinal()] = true;
-		try {
-			w_logWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(f_logFile, true)));
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-	
+
 	public boolean isEnabled(Options option)
 	{
 		synchronized (b_options)

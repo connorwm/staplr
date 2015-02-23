@@ -16,6 +16,7 @@ import net.staplr.common.Worker;
 import net.staplr.common.feed.Feed;
 import net.staplr.common.message.Message;
 import net.staplr.common.message.MessageExecutor;
+import net.staplr.logging.Entry;
 import net.staplr.logging.Log;
 import net.staplr.logging.LogHandle;
 import net.staplr.common.message.Message.Type;
@@ -113,8 +114,6 @@ public class Communication implements Runnable
 				break;
 			}
 		}
-		
-		//l_main.write("ERROR: Could not establish connection to other masters; shutting down...");
 	}
 	
 	/**Initiates the redistribute feeds process by sending out its redistribute number or handling the redistribution
@@ -140,7 +139,7 @@ public class Communication implements Runnable
 				{
 					if(!map_assignments.get("127.0.0.1").addAll(arr_feeds))
 					{
-						lh_communication.write("ERROR: Failed to add all of the feeds from "+(String)map_assignments.keySet().toArray()[i_assignmentIndex]);
+						lh_communication.write(Entry.Type.Error, "Failed to add all of the feeds from "+(String)map_assignments.keySet().toArray()[i_assignmentIndex]);
 					}
 				}
 			}
