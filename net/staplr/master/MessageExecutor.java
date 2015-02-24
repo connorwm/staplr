@@ -323,8 +323,6 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 								map_feedRedistribution.get(str_address).getRedistributeNumbers().put(sc_client.getAddress(), i_number);
 
 								// Now check to see if all numbers have been accounted for
-
-
 								if(map_feedRedistribution.get(str_address).allNumbersReceived())
 								{
 									lh_worker.write("All redistribute numbers received");
@@ -338,9 +336,20 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 										lh_worker.write("I have the highest number");
 										lh_worker.write("Gathering missing feeds...");
 
-										ArrayList<String> arr_missingFeeds = new ArrayList<String>();
-
+										ArrayList<String> arr_missingFeeds = f_feeds.getAssignments().get(str_address);
+																				
+										int i_feedsPerMaster = arr_missingFeeds.size()/c_communicator.getConnectionCount();
 										
+										lh_worker.write("Assigning feeds to other masters ("+i_feedsPerMaster+" per each "+c_communicator.getConnectionCount()+")...");
+										
+										for(int i_masterIndex = 0; i_masterIndex < c_communicator.getConnectionCount(); i_masterIndex++)
+										{
+											for(int i_feedIndex = (i_masterIndex * i_feedsPerMaster); i_feedIndex < arr_missingFeeds.size(); i_feedIndex++)
+											{
+												f_feeds.getAssignments().get(f_feeds.getAssignments().keySet().toArray()[i_masterIndex]).add(arr_missingFeeds.get(i_feedIndex));
+												// TODO Finish
+											}
+										}
 									}
 								}
 							}					
@@ -569,7 +578,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				
 				if(str_address != null && str_connectionStatus != null)
 				{
-					
+					// TODO
 				}
 				else
 				{
