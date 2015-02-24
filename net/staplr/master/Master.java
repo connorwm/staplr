@@ -38,7 +38,7 @@ public class Master implements Runnable
 	
 	public Master()
 	{
-		l_main = new Log();
+		l_main = new Log(Log.Instance.Server);
 		l_main.setOption(Log.Options.ConsoleOutput, false);
 		l_main.setOption(Log.Options.FileOutput, true);
 		

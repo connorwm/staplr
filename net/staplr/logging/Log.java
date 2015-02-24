@@ -23,18 +23,30 @@ public class Log
 		FileOutput
 	}
 	
+	public enum Instance
+	{
+		Server,
+		Client
+	}
+	
+	private String str_serverBaseDirectory = "/var/www/master/";
+	private String str_clientBaseDirectory = "./";
+	
 	private boolean[] b_options;	
 	private File f_logFile;
 	private Writer w_logWriter;
 	private boolean b_hasError;
-	private String str_baseDirectory = "/var/www/master/";
+	private String str_baseDirectory;
 	private String str_fileName;
 	
 	private int i_currentDay;
 	private DateTime dt_local;
 	
-	public Log()
+	public Log(Instance instance)
 	{
+		if(instance == Instance.Client) str_baseDirectory = str_clientBaseDirectory;
+		else str_baseDirectory = str_serverBaseDirectory;
+		
 		b_options = new boolean[Options.values().length];
 		b_hasError = false;
 		

@@ -60,7 +60,7 @@ public class Processor implements Runnable
 		ArrayList<String> arrlist_ignoreWords = new ArrayList<String>();
 		BufferedReader br_exclusionList = null;
 		boolean b_opened = false;
-		Log l_proc = new Log();
+		Log l_proc = new Log(Log.Instance.Client);
 		l_proc.setOption(Options.ConsoleOutput, true);
 		
 		try{

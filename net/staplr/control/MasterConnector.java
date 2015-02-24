@@ -67,7 +67,7 @@ public class MasterConnector
 	
 	public static void main(String[] args)
 	{
-		Log l_masterConnector = new Log("connector.log");
+		Log l_masterConnector = new Log(Log.Instance.Client);
 		l_masterConnector.setOption(Options.ConsoleOutput, true);
 		l_masterConnector.setOption(Options.FileOutput, true);
 		
