@@ -11,7 +11,7 @@ import javax.swing.JTextField;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
-import net.staplr.common.Credentials;
+import net.staplr.common.MasterCredentials;
 import net.staplr.common.DatabaseAuth;
 import net.staplr.common.FormIntermediary;
 import net.staplr.common.Communicator;
@@ -421,24 +421,24 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 					for(int i_masterIndex = 0; i_masterIndex < json_masters.size(); i_masterIndex++)
 					{
 						JSONObject json_master = (JSONObject)json_masters.get(i_masterIndex);
-						Credentials c_credential = new Credentials();
+						MasterCredentials c_credential = new MasterCredentials();
 						
 						try{
-							c_credential.set(Credentials.Properties.location, String.valueOf(json_master.get("address")));
-							c_credential.set(Credentials.Properties.port, String.valueOf((Long)json_master.get("port")));
+							c_credential.set(MasterCredentials.Properties.location, String.valueOf(json_master.get("address")));
+							c_credential.set(MasterCredentials.Properties.masterPort, String.valueOf((Long)json_master.get("port")));
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
 
-						for(int i_credentialIndex = 0; i_credentialIndex < s_settings.c_credentials.size(); i_credentialIndex++)
+						for(int i_credentialIndex = 0; i_credentialIndex < s_settings.mc_credentials.size(); i_credentialIndex++)
 						{
-							Credentials c_credentialIndex = s_settings.c_credentials.get(i_credentialIndex);
+							MasterCredentials c_credentialIndex = s_settings.mc_credentials.get(i_credentialIndex);
 							
-							if(c_credentialIndex.get(Credentials.Properties.location).equals(c_credential.get(Credentials.Properties.location)))
+							if(c_credentialIndex.get(MasterCredentials.Properties.location).equals(c_credential.get(MasterCredentials.Properties.location)))
 							{
-								if(c_credentialIndex.get(Credentials.Properties.port).equals(c_credential.get(Credentials.Properties.port)))
+								if(c_credentialIndex.get(MasterCredentials.Properties.masterPort).equals(c_credential.get(MasterCredentials.Properties.masterPort)))
 								{
-									c_credential.set(Credentials.Properties.key, c_credentialIndex.get(Credentials.Properties.key));
+									c_credential.set(MasterCredentials.Properties.key, c_credentialIndex.get(MasterCredentials.Properties.key));
 									
 									lh_worker.write("Connecting to\r\n"+c_credential.toString());
 									
