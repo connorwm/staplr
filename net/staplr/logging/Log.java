@@ -40,8 +40,11 @@ public class Log
 	private String str_fileName;
 	
 	private int i_currentDay;
-	private DateTime dt_local;
 	
+	/**Instance of the the logger across all classes.<br />
+	 * Log handles can be used to write to the log from multiple threads safely.  
+	 * @param instance Server or Client
+	 */
 	public Log(Instance instance)
 	{
 		if(instance == Instance.Client) str_baseDirectory = str_clientBaseDirectory;
@@ -50,26 +53,28 @@ public class Log
 		b_options = new boolean[Options.values().length];
 		b_hasError = false;
 		
-		dt_local = new DateTime(DateTimeZone.getDefault());
-		i_currentDay = dt_local.getDayOfMonth();
+		i_currentDay = DateTime.now(DateTimeZone.getDefault()).getDayOfMonth();
 				
 		for(int i_optionIndex = 0; i_optionIndex < Options.values().length; i_optionIndex++)
 		{
 			b_options[i_optionIndex] = false;
 		}
 		
-		str_fileName = "staplr-" + dt_local.toString("M.d.y") + ".log";
+		str_fileName = "staplr-" + DateTime.now(DateTimeZone.getDefault()).toString("M.d.y") + ".log";
 	}
 	
+	/**Writes a given Entry into the log in a thread-safe manner.
+	 * @param e_entry Entry to write: Status, Warning, or Error
+	 */
 	public synchronized void write(Entry e_entry)
 	{		
-		if(i_currentDay != dt_local.getDayOfMonth())
+		if(i_currentDay != DateTime.now(DateTimeZone.getDefault()).getDayOfMonth())
 		{
 			// We are on a new day
 			// A new log file is necessary
 			
-			str_fileName = "staplr-" + dt_local.toString("M.d.y") + ".log";
-			i_currentDay = dt_local.getDayOfMonth();
+			str_fileName = "staplr-" + DateTime.now(DateTimeZone.getDefault()).toString("M.d.y") + ".log";
+			i_currentDay = DateTime.now(DateTimeZone.getDefault()).getDayOfMonth();
 		}
 		
 		if(b_options[Options.ConsoleOutput.ordinal()]) {
@@ -96,8 +101,10 @@ public class Log
 		}
 	}
 	
-	
-	public void open()
+	/**Used by write() to open the log file for writing.<br />
+	 * Opens the file through the class' BufferedWriter and will create the file if it does not exist.
+	 */
+	private void open()
 	{
 		f_logFile = new File(str_baseDirectory + str_fileName);
 		
@@ -115,7 +122,10 @@ public class Log
 		}
 	}
 	
-	public void close()
+	/**Used by write() to close the log file.<br/>
+	 * Closes the file through the class' BufferedWriter.
+	 */
+	private void close()
 	{
 		try {
 			w_logWriter.close();
@@ -124,6 +134,10 @@ public class Log
 		}
 	}
 	
+	/**Sets an option for the logger.
+	 * @param option ConsoleOutput, FileOutput
+	 * @param b_value True or False
+	 */
 	public void setOption(Options option, boolean b_value)
 	{
 		synchronized (b_options)
@@ -132,6 +146,10 @@ public class Log
 		}
 	}
 
+	/**Returns the Boolean condition of an option. 
+	 * @param option ConsoleOutput, FileOutput
+	 * @return Boolean enabled state
+	 */
 	public boolean isEnabled(Options option)
 	{
 		synchronized (b_options)
