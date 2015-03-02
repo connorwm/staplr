@@ -4,11 +4,11 @@ import java.awt.EventQueue;
 
 import javax.swing.JFrame;
 
-import net.staplr.common.Credentials;
+import net.staplr.common.MasterCredentials;
 import net.staplr.common.Communicator.Type;
 import net.staplr.common.TextFieldLogger;
 import net.staplr.common.CopyOfSettings.Setting;
-import net.staplr.common.Credentials.Properties;
+import net.staplr.common.MasterCredentials.Properties;
 import net.staplr.common.Communicator;
 import net.staplr.logging.Log;
 import net.staplr.logging.Log.Options;
@@ -117,10 +117,10 @@ public class MasterConnector
 			// Form population
 			// ------------------------------------------
 						
-			for(int i_masterIndex = 0; i_masterIndex < s_settings.c_credentials.size(); i_masterIndex++)
+			for(int i_masterIndex = 0; i_masterIndex < s_settings.mc_credentials.size(); i_masterIndex++)
 			{
-				Credentials c_credentials = s_settings.c_credentials.get(i_masterIndex);
-				cmbo_master.add(c_credentials.get(Properties.location)+":"+c_credentials.get(Properties.port));
+				MasterCredentials c_credentials = s_settings.mc_credentials.get(i_masterIndex);
+				cmbo_master.add(c_credentials.get(Properties.location)+":"+c_credentials.get(Properties.servicePort));
 			}
 			
 			// ------------------------------------------
@@ -183,13 +183,13 @@ public class MasterConnector
 						}
 						finally
 						{
-							for(int i_masterIndex = 0; i_masterIndex < s_settings.c_credentials.size(); i_masterIndex++)
+							for(int i_masterIndex = 0; i_masterIndex < s_settings.mc_credentials.size(); i_masterIndex++)
 							{
-								Credentials c_credential = s_settings.c_credentials.get(i_masterIndex);
+								MasterCredentials c_credential = s_settings.mc_credentials.get(i_masterIndex);
 								
 								if(((String)c_credential.get(Properties.location)).equals(str_location))
 								{
-									if(String.valueOf(c_credential.get(Properties.port)).equals(str_port))
+									if(String.valueOf(c_credential.get(Properties.masterPort)).equals(str_port))
 									{
 										tf_logger.log("Attempting to connect to "+str_selectedMaster, TextFieldLogger.StandardStyle);
 										

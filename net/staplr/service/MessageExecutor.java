@@ -77,7 +77,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				msg_settings.addItem("databaseAuth", json_databaseAuth);
 				
 				msg_settings.addItem("masterKey", String.valueOf(s_settings.get(Setting.masterKey)));
-				msg_settings.addItem("masterCommunicationPort", String.valueOf(s_settings.get(Setting.masterCommunicationPort)));
+				msg_settings.addItem("masterCommunicationPort", String.valueOf(s_settings.get(Setting.masterPort)));
 				msg_settings.addItem("servicePort", String.valueOf(s_settings.get(Setting.servicePort)));
 				
 				super.send(msg_settings);

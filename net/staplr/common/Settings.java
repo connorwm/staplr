@@ -1,36 +1,29 @@
 package net.staplr.common;
+
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-
 import net.staplr.common.DatabaseAuth.Properties;
 import net.staplr.logging.Entry;
 import net.staplr.logging.Log;
-import net.staplr.logging.Log.Options;
 import net.staplr.logging.LogHandle;
-import net.staplr.master.MasterCredentials;
-import net.staplr.processing.Processor;
-
+import net.staplr.common.MasterCredentials;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.Mongo;
-
 
 /**Universal Settings Object
  * @author murphyc1
@@ -43,13 +36,13 @@ public class Settings
 		version,
 		maxSlaveCount,
 		masterKey,
-		masterCommunicationPort,
+		masterPort,
 		servicePort,
 		agentName
 	}
 
 	private Object[] o_settings;
-	public ArrayList<Credentials> c_credentials;
+	public ArrayList<MasterCredentials> mc_credentials;
 	public Map<String, DatabaseAuth> map_databaseAuth;
 	private DatabaseAuth auth_settingsDB;
 	private ArrayList<String> arrlist_ignoreWords;
@@ -57,7 +50,7 @@ public class Settings
 	private LogHandle lh_settings;
 	private boolean b_loadStatus;
 	
-	/**Instantiates Universal Settings Object
+	/**Instantiates universal settings object
 	 * @author connorwm
 	 * @param l_main - Log file object
 	 */
@@ -69,7 +62,7 @@ public class Settings
 		DocumentBuilder documentBuilder = null;
 		Document document = null;
 		o_settings = new String[Setting.values().length];
-		c_credentials = new ArrayList<Credentials>();
+		mc_credentials = new ArrayList<MasterCredentials>();
 		arrlist_ignoreWords = new ArrayList<String>();
 		map_databaseAuth = new ConcurrentHashMap<String, DatabaseAuth>();
 		auth_settingsDB = new DatabaseAuth();
@@ -90,7 +83,6 @@ public class Settings
 			} finally {
 				if(document == null)
 				{
-					//System.out.println("Document is null :P");
 					lh_settings.write(Entry.Type.Error, "Fatal Error: settings document is null");
 					b_loadStatus = false;
 				} else {
@@ -294,25 +286,25 @@ public class Settings
 										for(int i_masterIndex = 0; i_masterIndex < dbo_masters.size(); i_masterIndex++)
 										{
 											DBObject dbo_master = (DBObject)dbo_masters.get(i_masterIndex);
-											Credentials c_credential = new Credentials();
+											MasterCredentials mc_credential = new MasterCredentials();
 											lh_settings.write("Master");
 											
 											for(int i_masterChildIndex = 0; i_masterChildIndex < dbo_master.keySet().size(); i_masterChildIndex++)
 											{
 												String str_child = (String)dbo_master.keySet().toArray()[i_masterChildIndex];
 												
-												for(int i_masterPropertyIndex = 0; i_masterPropertyIndex < Credentials.Properties.values().length; i_masterPropertyIndex++)
+												for(int i_masterPropertyIndex = 0; i_masterPropertyIndex < MasterCredentials.Properties.values().length; i_masterPropertyIndex++)
 												{
-													if(Credentials.Properties.values()[i_masterPropertyIndex].toString().equals(str_child))
+													if(MasterCredentials.Properties.values()[i_masterPropertyIndex].toString().equals(str_child))
 													{
-														c_credential.set(Credentials.Properties.values()[i_masterPropertyIndex], (String)dbo_master.get(str_child));
-														lh_settings.write("\t"+Credentials.Properties.values()[i_masterPropertyIndex].toString()+"='"+dbo_master.get(str_child)+"'");
+														mc_credential.set(MasterCredentials.Properties.values()[i_masterPropertyIndex], (String)dbo_master.get(str_child));
+														lh_settings.write("\t"+MasterCredentials.Properties.values()[i_masterPropertyIndex].toString()+"='"+dbo_master.get(str_child)+"'");
 														break;
 													}
 												}
 											}
 											
-											c_credentials.add(c_credential);
+											mc_credentials.add(mc_credential);
 										}
 									}
 									else
@@ -350,9 +342,8 @@ public class Settings
 	}
 	
 	/**Gets a setting
-	 * @param setting
+	 * @param setting 
 	 * @return Object
-	 * @author murphyc1
 	 */
 	public synchronized Object get(Setting setting)
 	{
@@ -362,7 +353,6 @@ public class Settings
 	/**Sets a setting
 	 * @param setting
 	 * @param value
-	 * @author murphyc1
 	 */
 	public synchronized void set(Setting setting, String value)
 	{
@@ -371,7 +361,6 @@ public class Settings
 	
 	/**Adds a database authorization for use by assets of program
 	 * @param auth_settingsDB
-	 * @author murphyc1
 	 */
 	public void setSettingsDBAuth(DatabaseAuth auth_settingsDB)
 	{
@@ -380,7 +369,6 @@ public class Settings
 	
 	/**Checks to see if the settings loaded correctly (able to be successfully downloaded)
 	 * @return Boolean value of whether or not the settings loaded successfully
-	 * @author murphyc1
 	 */
 	public boolean loaded()
 	{

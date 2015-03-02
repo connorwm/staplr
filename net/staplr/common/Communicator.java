@@ -1,14 +1,11 @@
 package net.staplr.common;
 
-import java.util.Random;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import net.staplr.common.Credentials.Properties;
-import net.staplr.common.feed.Feed;
+import net.staplr.common.MasterCredentials.Properties;
 import net.staplr.common.message.Message;
 import net.staplr.common.message.MessageExecutor;
 import net.staplr.common.message.Message.Value;
@@ -18,7 +15,6 @@ import net.staplr.logging.Entry;
 import net.staplr.logging.LogHandle;
 import net.staplr.master.Communication;
 import net.staplr.master.Feeds;
-import net.staplr.master.Master;
 import FFW.Network.*;
 
 /**Master object for handling a specific type of master communications: for either masters and service
@@ -137,22 +133,22 @@ public class Communicator implements Runnable
 	}
 	
 	/**Connects to a master
-	 * @param credentials - Credentials for master (location, port, key)
+	 * @param mc_credentials - Credentials for master (location, port, key)
 	 * @return MessageExecutor for the connection 
 	 */
-	public MessageExecutor connect(Credentials credentials)
+	public MessageExecutor connect(MasterCredentials mc_credentials)
 	{
-		DefaultSocketConnection sc_new = new DefaultSocketConnection((String)credentials.get(Credentials.Properties.location), Integer.valueOf((String)credentials.get(Credentials.Properties.port)));
+		DefaultSocketConnection sc_new = new DefaultSocketConnection((String)mc_credentials.get(MasterCredentials.Properties.location), Integer.valueOf((String)mc_credentials.get(MasterCredentials.Properties.masterPort)));
 		
 		sc_new.connect();
 		
 		if(sc_new.isConnected())
 		{
-			lh_communication.write("Connected to master "+credentials.get(Credentials.Properties.location));
+			lh_communication.write("Connected to master "+mc_credentials.get(MasterCredentials.Properties.location));
 			Worker w_new = addClient(sc_new, true);
 
 			Message msg_key = new Message(Message.Type.Request, Value.Authorization);
-			msg_key.addItem("key", (String)credentials.get(Properties.key));
+			msg_key.addItem("key", (String)mc_credentials.get(Properties.key));
 
 			w_new.mx_executor.send(msg_key);
 

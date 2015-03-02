@@ -7,13 +7,10 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import FFW.Network.DefaultSocketConnection;
 import net.staplr.common.Communicator;
 import net.staplr.common.Settings;
-import net.staplr.common.Credentials.Properties;
+import net.staplr.common.MasterCredentials.Properties;
 import net.staplr.common.Worker;
-import net.staplr.common.feed.Feed;
 import net.staplr.common.message.Message;
 import net.staplr.common.message.MessageExecutor;
 import net.staplr.logging.Entry;
@@ -101,10 +98,10 @@ public class Communication implements Runnable
 		Message msg_sync = new Message(Message.Type.Request, Message.Value.Sync);
 		lh_communication.write("Attempting to join masters...");
 		
-		for(int i_masterIndex = 0; i_masterIndex < s_settings.c_credentials.size(); i_masterIndex++)
+		for(int i_masterIndex = 0; i_masterIndex < s_settings.mc_credentials.size(); i_masterIndex++)
 		{
-			lh_communication.write("Connecting to "+s_settings.c_credentials.get(i_masterIndex).get(Properties.location));
-			mx_executor = c_master.connect(s_settings.c_credentials.get(i_masterIndex));
+			lh_communication.write("Connecting to "+s_settings.mc_credentials.get(i_masterIndex).get(Properties.location));
+			mx_executor = c_master.connect(s_settings.mc_credentials.get(i_masterIndex));
 			
 			if(mx_executor != null)
 			{
