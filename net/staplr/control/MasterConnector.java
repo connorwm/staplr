@@ -29,6 +29,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 
 import javax.swing.JButton;
+import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 import javax.swing.JTextPane;
 import javax.swing.JScrollPane;
@@ -48,7 +49,7 @@ public class MasterConnector
 	private JButton btn_connect;
 	private Choice cmbo_master;
 	private JFrame frame;
-	private JTextField txt_masterKey;
+	private JPasswordField pwd_masterKey;
 	private JLabel lbl_status;
 	private JLabel lblLog;
 	private JTextPane txt_log;
@@ -170,6 +171,7 @@ public class MasterConnector
 					catch (Exception e)
 					{
 						e.printStackTrace();
+						return;
 					}
 					finally
 					{
@@ -180,26 +182,26 @@ public class MasterConnector
 						catch(Exception e)
 						{
 							e.printStackTrace();
+							return;
 						}
 						finally
 						{
 							for(int i_masterIndex = 0; i_masterIndex < s_settings.mc_credentials.size(); i_masterIndex++)
 							{
-								MasterCredentials c_credential = s_settings.mc_credentials.get(i_masterIndex);
+								MasterCredentials mc_credential = s_settings.mc_credentials.get(i_masterIndex);
 								
-								if(((String)c_credential.get(Properties.location)).equals(str_location))
+								if(((String)mc_credential.get(Properties.location)).equals(str_location))
 								{
-									if(String.valueOf(c_credential.get(Properties.masterPort)).equals(str_port))
+									if(String.valueOf(mc_credential.get(Properties.masterPort)).equals(str_port))
 									{
 										tf_logger.log("Attempting to connect to "+str_selectedMaster, TextFieldLogger.StandardStyle);
 										
-										if(txt_masterKey.getText().length() > 0)
+										if(pwd_masterKey.getPassword().toString().length() > 0)
 										{
-											c_credential.set(Properties.key, txt_masterKey.getText());
+											mc_credential.set(Properties.key, pwd_masterKey.getPassword().toString());
 										}
 										
-										
-										if((mx_executor = (MessageExecutor)c_communicator.connect(c_credential)) != null)
+										if((mx_executor = (MessageExecutor)c_communicator.connect(mc_credential)) != null)
 										{
 											tf_logger.log("Connection Success", TextFieldLogger.SuccessStyle);
 											
@@ -222,9 +224,10 @@ public class MasterConnector
 		
 		frame.getContentPane().add(btn_connect, "4, 4");
 		
-		txt_masterKey = new JTextField();
-		frame.getContentPane().add(txt_masterKey, "2, 6, fill, default");
-		txt_masterKey.setColumns(10);
+		pwd_masterKey = new JPasswordField();
+		frame.getContentPane().add(pwd_masterKey, "2, 6, fill, default");
+		pwd_masterKey.setColumns(10);
+		pwd_masterKey.setEchoChar('•'); // Bullet Point Character
 		
 		lblLog = new JLabel("Log");
 		frame.getContentPane().add(lblLog, "2, 8");
