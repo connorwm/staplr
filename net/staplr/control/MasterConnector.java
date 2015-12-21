@@ -1,18 +1,14 @@
 package net.staplr.control;
 
-import java.awt.EventQueue;
-
 import javax.swing.JFrame;
 
 import net.staplr.common.MasterCredentials;
 import net.staplr.common.Communicator.Type;
 import net.staplr.common.TextFieldLogger;
-import net.staplr.common.CopyOfSettings.Setting;
 import net.staplr.common.MasterCredentials.Properties;
 import net.staplr.common.Communicator;
 import net.staplr.logging.Log;
 import net.staplr.logging.Log.Options;
-import net.staplr.master.Master;
 import net.staplr.service.MessageExecutor;
 import net.staplr.common.Settings;
 
@@ -30,7 +26,6 @@ import java.awt.event.MouseListener;
 
 import javax.swing.JButton;
 import javax.swing.JPasswordField;
-import javax.swing.JTextField;
 import javax.swing.JTextPane;
 import javax.swing.JScrollPane;
 import javax.swing.ScrollPaneConstants;
@@ -160,7 +155,7 @@ public class MasterConnector
 			}
 			public void mouseReleased(MouseEvent me) {
 				if(me.getButton() == MouseEvent.BUTTON1)
-				{
+				{					
 					String str_selectedMaster = cmbo_master.getSelectedItem();
 					String str_location = null;
 					String str_port = null;
@@ -192,20 +187,18 @@ public class MasterConnector
 								
 								if(((String)mc_credential.get(Properties.location)).equals(str_location))
 								{
-									if(String.valueOf(mc_credential.get(Properties.masterPort)).equals(str_port))
+									if(String.valueOf(mc_credential.get(Properties.servicePort)).equals(str_port))
 									{
 										tf_logger.log("Attempting to connect to "+str_selectedMaster, TextFieldLogger.StandardStyle);
 										
 										if(pwd_masterKey.getPassword().toString().length() > 0)
 										{
-											mc_credential.set(Properties.key, pwd_masterKey.getPassword().toString());
+											mc_credential.set(Properties.key, String.valueOf(pwd_masterKey.getPassword()));
 										}
 										
 										if((mx_executor = (MessageExecutor)c_communicator.connect(mc_credential)) != null)
 										{
 											tf_logger.log("Connection Success", TextFieldLogger.SuccessStyle);
-											
-											new MasterServiceWindow(mx_executor);
 										}
 										else
 										{

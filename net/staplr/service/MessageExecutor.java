@@ -27,6 +27,7 @@ import net.staplr.common.message.MessageEnsurer;
 import net.staplr.common.message.Message.Type;
 import net.staplr.common.message.Message.Value;
 import net.staplr.common.TextFieldLogger;
+import net.staplr.control.MasterServiceWindow;
 import net.staplr.logging.Log;
 import net.staplr.logging.LogHandle;
 import net.staplr.master.Feeds;
@@ -223,6 +224,24 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 		}
 		else if(msg_message.getType() == Message.Type.Response)
 		{
+			System.out.println("Received a message: "+msg_message.toString());
+			
+			if(msg_message.getValue() == Message.Value.Rejected)
+			{
+				TextFieldLogger tf_logger = fi_main.getLogger();
+				
+				tf_logger.log("Authorization Rejected", TextFieldLogger.ErrorStyle);
+			}
+
+			if(msg_message.getValue() == Message.Value.Accepted)
+			{
+				//TextFieldLogger tf_logger = fi_main.getLogger();
+				
+				//tf_logger.log("Authorization Accepted", TextFieldLogger.SuccessStyle);
+				
+				new MasterServiceWindow(this);
+			}
+			
 			if(msg_message.getValue() == Message.Value.Settings)
 			{
 				TextFieldLogger tf_logger = fi_main.getLogger();
@@ -252,31 +271,8 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 			}
 			if(msg_message.getValue() == Message.Value.Logs)
 			{
-				String str_logType = String.valueOf(msg_message.get("type"));
 				String str_logContents = String.valueOf(msg_message.get("contents"));
-				TextArea ta_log = null;
-				
-				if(str_logType == "master")
-				{
-					ta_log = (TextArea) fi_main.get("log_master");
-				}
-				else if(str_logType == "listener")
-				{
-					ta_log = (TextArea) fi_main.get("log_listener");
-				}
-				else if(str_logType == "ensurer")
-				{
-					ta_log = (TextArea) fi_main.get("log_ensurer");
-				}
-				else if(str_logType == "settings")
-				{
-					ta_log = (TextArea) fi_main.get("log_settings");
-				}
-				else
-				{
-					lh_worker.write("ERROR: Unknown log type received back: '"+str_logType+"'");
-					super.respondInvalid(msg_message);
-				}
+				TextArea ta_log = (TextArea)fi_main.get("ta_log");
 				
 				if(ta_log != null)
 				{

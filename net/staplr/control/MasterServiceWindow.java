@@ -1,7 +1,7 @@
 package net.staplr.control;
 
-import java.awt.EventQueue;
 import javax.swing.JFrame;
+
 import net.staplr.common.FormIntermediary;
 import net.staplr.common.TextFieldLogger;
 import net.staplr.service.MessageExecutor;
@@ -12,34 +12,35 @@ import net.staplr.common.message.Message.Value;
 import javax.swing.JMenuBar;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import javax.swing.JSplitPane;
 import javax.swing.JTextField;
+import javax.swing.WindowConstants;
+
 import java.awt.BorderLayout;
+
 import javax.swing.JTabbedPane;
 import javax.swing.JTextPane;
 import javax.swing.JScrollPane;
 import javax.swing.JPanel;
-import java.awt.GridLayout;
+
 import com.jgoodies.forms.layout.FormLayout;
 import com.jgoodies.forms.layout.ColumnSpec;
 import com.jgoodies.forms.layout.RowSpec;
 import com.jgoodies.forms.factories.FormFactory;
+
 import javax.swing.JLabel;
+
 import java.awt.Font;
-import javax.swing.JPasswordField;
+
 import javax.swing.ScrollPaneConstants;
 import javax.swing.JTextArea;
 
 import org.json.simple.JSONObject;
+
 import javax.swing.JButton;
-import java.awt.event.ActionListener;
-import java.awt.event.ActionEvent;
+
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import javax.swing.JScrollBar;
-import java.awt.event.MouseAdapter;
 import java.awt.TextArea;
-import javax.swing.SwingConstants;
 
 public class MasterServiceWindow {
 	private MessageExecutor mx_executor;
@@ -94,6 +95,7 @@ public class MasterServiceWindow {
 		initFormComponents();
 		
 		frmMasterService.setVisible(true);
+		frmMasterService.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 		
 		this.mx_executor = mx_executor;
 		tf_logger = new TextFieldLogger(txt_log);
@@ -107,7 +109,7 @@ public class MasterServiceWindow {
 		fi_main.put("masterCommunicationPort", txtCommunicationPort);
 		fi_main.put("servicePort", txtServicePort);
 		fi_main.put("masterKey", txtKey);
-		fi_main.put("log", ta_log);
+		fi_main.put("ta_log", ta_log);
 		fi_main.put("ta_feeds", ta_feeds);
 		
 		mx_executor.setFormIntermediary(fi_main);
