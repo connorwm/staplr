@@ -1,4 +1,5 @@
 package net.staplr.common;
+import com.mongodb.MongoCredential;
 
 public class DatabaseAuth
 {
@@ -40,6 +41,11 @@ public class DatabaseAuth
 		str_result+="}";
 		
 		return str_result;
+	}
+	
+	public MongoCredential toMongoCredential()
+	{
+		return MongoCredential.createCredential(String.valueOf(properties[Properties.username.ordinal()]), String.valueOf(properties[Properties.database.ordinal()]), String.valueOf(properties[Properties.password.ordinal()]).toCharArray());
 	}
 	
 	public boolean isComplete()
