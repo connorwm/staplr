@@ -29,7 +29,8 @@ public class Log
 		Client
 	}
 	
-	private String str_serverBaseDirectory = "/var/www/master/";
+	private String str_windowsServerBaseDirectory = "./";
+	private String str_linuxServerBaseDirectory = "/var/www/master/";
 	private String str_clientBaseDirectory = "./";
 	
 	private boolean[] b_options;	
@@ -47,8 +48,21 @@ public class Log
 	 */
 	public Log(Instance instance)
 	{
+		// Determine which operating system we are running on
+		// Server base directory will be dependent on this 
+		String localOS = System.getProperty("os.name").toLowerCase();
+		
 		if(instance == Instance.Client) str_baseDirectory = str_clientBaseDirectory;
-		else str_baseDirectory = str_serverBaseDirectory;
+		else 
+		{
+			if(localOS.indexOf("win") >= 0) str_baseDirectory = str_windowsServerBaseDirectory;
+			else if(localOS.indexOf("linux") >= 0) str_baseDirectory = str_linuxServerBaseDirectory;
+			else 
+			{
+				str_baseDirectory = "./"; // Indeterminate where else to go so play it safe
+				System.err.println("Indeterminate OS: Will be logging in the current directory");
+			}
+		}
 		
 		b_options = new boolean[Options.values().length];
 		b_hasError = false;
