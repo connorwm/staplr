@@ -232,8 +232,11 @@ public class Settings
 
 			try
 			{
-				mc_settings = new MongoClient(new ServerAddress((String)auth_settingsDB.get(DatabaseAuth.Properties.location), Integer.parseInt((String)auth_settingsDB.get(DatabaseAuth.Properties.port))), Arrays.asList(auth_settingsDB.toMongoCredential()));
-				//m_settings = new Mongo((String)auth_settingsDB.get(DatabaseAuth.Properties.location), Integer.parseInt((String)auth_settingsDB.get(DatabaseAuth.Properties.port)));
+				mc_settings = new MongoClient(
+						auth_settingsDB.toServerAddress(), 
+						Arrays.asList(auth_settingsDB.toMongoCredential())
+						);
+				
 				db_settings = mc_settings.getDatabase("settings");
 			}
 			catch (Exception e)
