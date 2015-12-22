@@ -1,11 +1,9 @@
 package net.staplr.slave;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
 import java.util.concurrent.Future;
 
+import org.bson.Document;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -16,7 +14,6 @@ import net.staplr.common.feed.Entry;
 import net.staplr.common.feed.Feed;
 import net.staplr.common.feed.FeedDocument;
 import net.staplr.common.feed.Link;
-import net.staplr.common.feed.Link.Properties;
 import net.staplr.logging.Log;
 import net.staplr.logging.Entry.Type;
 import net.staplr.logging.LogHandle;
@@ -24,15 +21,13 @@ import net.staplr.master.DatabaseExecutor;
 import net.staplr.processing.Processor;
 
 import com.mongodb.BasicDBList;
-import com.mongodb.DBCollection;
-import com.mongodb.DBCursor;
-import com.mongodb.DBObject;
-import com.mongodb.BasicDBObject;
-import com.mongodb.Mongo;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
+import com.mongodb.client.MongoIterable;
+import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoException;
-import com.mongodb.WriteConcern;
-import com.mongodb.WriteResult;
-import com.mongodb.DB;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.result.UpdateResult;
 
 /**Essential runnable object for updating and parsing a feed
  * @author connorwm
@@ -41,15 +36,15 @@ public class Slave implements Runnable
 {
 	private FeedParser feedParser;
 	
-	private DB db_feed;
-	private DB db_entries;
-	private DB db_statistics;
+	private MongoDatabase db_feed;
+	private MongoDatabase db_entries;
+	private MongoDatabase db_statistics;
 	
 	private Settings s_settings;
 	private Feed f_feed;
 	private LogHandle lh_slave;
-	private DBObject dbo_feedStatistics;
-	private DBCollection col_feedStatistics;
+	private Document doc_feedStatistics;
+	private MongoCollection<Document> col_feedStatistics;
 	private Processor p_processor;
 	private Log l_main;
 	private DatabaseExecutor dx_executor;
@@ -76,15 +71,17 @@ public class Slave implements Runnable
 
 		// Load Up Feed's Statistics
 		col_feedStatistics = db_statistics.getCollection("feeds");
-		dbo_feedStatistics = getStatisticsDocument(f_feed, col_feedStatistics);	
+		doc_feedStatistics = getStatisticsDocument(f_feed, col_feedStatistics);	
 		
 		// Get the collections because we will need their documents
-		DBCollection col_entries = db_entries.getCollection(f_feed.get(Feed.Properties.collection));
-		DBCollection col_feeds = db_feed.getCollection(f_feed.get(Feed.Properties.collection));
-		DBObject dbo_feed = getFeedDocument(f_feed, col_feeds);
+		MongoCollection<Document> col_entries = db_entries.getCollection(f_feed.get(Feed.Properties.collection));
+		MongoCollection<Document> col_feeds = db_feed.getCollection(f_feed.get(Feed.Properties.collection));
+		Document doc_feed = getFeedDocument(f_feed, col_feeds);
 		
 		// Check entries collection
-		if(!db_entries.collectionExists(f_feed.get(Feed.Properties.collection)))
+		
+		
+		if(!collectionExists(db_entries.listCollectionNames(), f_feed.get(Feed.Properties.collection)))
 		{
 			lh_slave.write("Entries collection "+f_feed.get(Feed.Properties.collection)+" does not exist.");
 		} else {		
@@ -92,7 +89,7 @@ public class Slave implements Runnable
 		}
 		
 		// Check feeds collection
-		if(!db_feed.collectionExists(f_feed.get(Feed.Properties.collection)))
+		if(!collectionExists(db_feed.listCollectionNames(), f_feed.get(Feed.Properties.collection)))
 		{
 			lh_slave.write("Feed collection "+f_feed.get(Feed.Properties.collection)+" does not exist."); 
 		} else {
@@ -121,30 +118,31 @@ public class Slave implements Runnable
 				FeedDocument fd_feedDocument = feedDownloader.getFeedDocument();
 				
 				lh_slave.write("Parsing "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"...");
-				feedParser = new FeedParser(fd_feedDocument, f_feed, dbo_feed, lh_slave);
+				feedParser = new FeedParser(fd_feedDocument, f_feed, doc_feed, lh_slave);
 				feedParser.parse();
-				lh_slave.write("Parsed "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+":\t"+dbo_feed.toString());
+				lh_slave.write("Parsed "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+":\t"+doc_feed.toString());
 				
 				lh_slave.write("Posting updated feed document of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
-				WriteResult updateResult = col_feeds.update(new BasicDBObject("_id", dbo_feed.get("_id")), dbo_feed, true, false);
+				UpdateResult ur_feeds = col_feeds.updateOne(new Document("_id", doc_feed.get("_id")), doc_feed);
 				
-				if(updateResult.getError() == null) 
+				if(ur_feeds.getModifiedCount() == 1) 
 				{
 					lh_slave.write("Successfully updated "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
 				}
 				else 
 				{
-					lh_slave.write(Type.Error, "Failed to update feed document of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"; Last Error:\r\n"+updateResult.getError());
+					lh_slave.write(Type.Error, "Failed to update feed document of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"\r\n: "+
+							"Matched: "+ur_feeds.getMatchedCount()+"; Modified: "+ur_feeds.getModifiedCount()+"; Message: "+ur_feeds.toString());
 				}
 				
 				//--------------------------------------------------------------------------
-				// Work on entries
+				// Parse entries
 				//--------------------------------------------------------------------------
 				
 				lh_slave.write("Working on entries for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+":");
 
-				DBObject dbo_entry = null;
-				ArrayList<DBObject> arr_entries = new ArrayList<DBObject>();
+				Document doc_entry = null;
+				ArrayList<Document> arr_entries = new ArrayList<Document>();
 				ArrayList<Entry> entries = fd_feedDocument.getEntries();
 				Entry e_entry = null;
 				boolean collectionEmpty = false;
@@ -173,7 +171,7 @@ public class Slave implements Runnable
 				arr_entries = buildEntryList(col_feeds, collectionEmpty, entries);
 				lh_slave.write("Built entry list for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
 				
-				//  If dbo_entries has entries, then we need to figure out which ones need to be posted
+				//  If doc_entries has entries, then we need to figure out which ones need to be posted
 				if(arr_entries.size() > 0)
 				{
 					lh_slave.write(f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+" has entries to be posted. "+arr_entries.size()+" to be parsed.");
@@ -184,14 +182,14 @@ public class Slave implements Runnable
 					}
 					else
 					{
-						if(dbo_feedStatistics != null)
+						if(doc_feedStatistics != null)
 						{
 							lh_slave.write("Have statistics document for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
 							
-							if(dbo_feedStatistics.get("timestamp") != null)
+							if(doc_feedStatistics.get("timestamp") != null)
 							{
 								lh_slave.write(f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+" has most recent date; removing entries before...");
-								arr_entries = removeEntriesBefore(Long.parseLong(String.valueOf(dbo_feedStatistics.get("timestamp"))), arr_entries);
+								arr_entries = removeEntriesBefore(Long.parseLong(String.valueOf(doc_feedStatistics.get("timestamp"))), arr_entries);
 								lh_slave.write("Removed old entries from entries to be posted for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
 							}
 							else
@@ -226,19 +224,19 @@ public class Slave implements Runnable
 	
 	/**Removes all entries in the entries array that are older than the most recent entry in the specified feed
 	 * @author connorwm
-	 * @param dbo_entries - Array of entries that contains old entries
+	 * @param doc_entries - Array of entries that contains old entries
 	 * @param f_feed - The corresponding feed
 	 * @param col_entries - The entry collection corresponding to the feed
-	 * @return DBObject array with old entries removed
+	 * @return Document array with old entries removed
 	 */
-	private ArrayList<DBObject> removeOldEntries(ArrayList<DBObject> dbo_entries, Feed f_feed, DBCollection col_entries)
+	private ArrayList<Document> removeOldEntries(ArrayList<Document> doc_entries, Feed f_feed, MongoCollection<Document> col_entries)
 	{
-		DBObject dbo_mostRecentEntry = findMostRecentEntry(f_feed.get(Feed.Properties.name), col_entries);
+		Document doc_mostRecentEntry = findMostRecentEntry(f_feed.get(Feed.Properties.name), col_entries);
 		
-		if(dbo_mostRecentEntry != null)
+		if(doc_mostRecentEntry != null)
 		{
 			lh_slave.write("Found a most recent entry for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"; removing others before...");
-			dbo_entries = removeEntriesBefore(Long.valueOf(String.valueOf(dbo_mostRecentEntry.get("timestamp"))), dbo_entries);
+			doc_entries = removeEntriesBefore(Long.valueOf(String.valueOf(doc_mostRecentEntry.get("timestamp"))), doc_entries);
 			lh_slave.write("Old entries removed from "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"; ready to post");
 		}
 		else
@@ -246,98 +244,95 @@ public class Slave implements Runnable
 			lh_slave.write("Could not find a most recent entry for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"; all will be posted");
 		}
 		
-		return dbo_entries;
+		return doc_entries;
 	}
 	
 	/**Finds the most recent entry in the the feed specified by str_feedName in the feed's collection
 	 * @author connorwm
 	 * @param str_feedName
 	 * @param col_entryCollection
-	 * @return DBObject with the most recent entry
+	 * @return Document with the most recent entry
 	 */
-	private DBObject findMostRecentEntry(String str_feedName, DBCollection col_entryCollection)
+	private Document findMostRecentEntry(String str_feedName, MongoCollection<Document> col_entryCollection)
 	{
-		DBObject dbo_entry = new BasicDBObject();
-		DBCursor cur_feedResults = null;
+		Document doc_entry = new Document();
+		MongoCursor<Document> cur_feedResults = null;
 		
 		// Find all entries in the collection for that collection's individual feed
 		// Example: Gizmodo
 		// We want to find the entries from the 'top' feed of Gizmodo. So set name = 'top';
-		dbo_entry.put("feed", str_feedName);
+		doc_entry.put("feed", str_feedName);
 		
-		cur_feedResults = col_entryCollection.find(dbo_entry);
+		MongoIterable<Document> it_feedResults = col_entryCollection.find().sort(new Document("timestamp", -1)); // Sort them by date; newest first
 		
-		// Now let's go hunt for the most recent one if there are any entries for that feed
-		if(cur_feedResults.size() > 0)
-		{
-			cur_feedResults = cur_feedResults.sort(new BasicDBObject("timestamp", -1)); // Sort them by date; newest first
-			
-			// Get the next one since it will be the newest
-			dbo_entry = cur_feedResults.next();
+		// Now let's go get the most recent one if there are any entries for that feed
+		if(it_feedResults.first() != null)
+		{			
+			doc_entry = (Document) it_feedResults.first();
 		} 
 		else 
 		{
 			// Set it to null so when the result is examined they know we didn't
 			// find anything. Currently has name = str_feedName;
-			dbo_entry = null;
+			doc_entry = null;
 		}
 		
-		return dbo_entry;
+		return doc_entry;
 	}
 	
 	/**Removes all entries before the specified date in the entry array
 	 * @author connorwm
 	 * @param dt_mostRecent
 	 * @param dtf
-	 * @param dbo_entries
+	 * @param doc_entries
 	 * @return Array of DBObjects with dates that occur after dt_mostRecent
 	 */
-	private ArrayList<DBObject> removeEntriesBefore(Long l_mostRecent, ArrayList<DBObject> dbo_entries)
+	private ArrayList<Document> removeEntriesBefore(Long l_mostRecent, ArrayList<Document> doc_entries)
 	{
-		ArrayList<DBObject> dbo_toBeRemoved = new ArrayList<DBObject>();
+		ArrayList<Document> doc_toBeRemoved = new ArrayList<Document>();
 		
-		for(int i_entryIndex = 0; i_entryIndex < dbo_entries.size(); i_entryIndex++)
+		for(int i_entryIndex = 0; i_entryIndex < doc_entries.size(); i_entryIndex++)
 		{
-			DBObject dbo_current = dbo_entries.get(i_entryIndex);
+			Document doc_current = doc_entries.get(i_entryIndex);
 			
-			if(Long.parseLong(String.valueOf(dbo_current.get("timestamp"))) <= l_mostRecent)
+			if(Long.parseLong(String.valueOf(doc_current.get("timestamp"))) <= l_mostRecent)
 			{
-				dbo_toBeRemoved.add(dbo_current);
+				doc_toBeRemoved.add(doc_current);
 			}
 		}
 		
-		lh_slave.write("Removing "+dbo_toBeRemoved.size()+"/"+dbo_entries.size()+" of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
-		dbo_entries.removeAll(dbo_toBeRemoved);
-		lh_slave.write("Entries to be posted of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+": "+dbo_entries.size());
+		lh_slave.write("Removing "+doc_toBeRemoved.size()+"/"+doc_entries.size()+" of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+		doc_entries.removeAll(doc_toBeRemoved);
+		lh_slave.write("Entries to be posted of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+": "+doc_entries.size());
 		
-		return dbo_entries;
+		return doc_entries;
 	}
 	
 	/**Returns the date of an entry regardless of being from an RSS or Atom feed
 	 * @author connorwm
-	 * @param dbo_entry - MongoDB object of Entry
+	 * @param doc_entry - MongoDB object of Entry
 	 * @param dtf - DateTimeFormatter for the feed's date format
 	 * @return DateTime object of the entry's post date
 	 */
-	private DateTime getEntryDate(DBObject dbo_entry, DateTimeFormatter dtf)
+	private DateTime getEntryDate(Document doc_entry, DateTimeFormatter dtf)
 	{
 		DateTime dt_entryDate = null;
 		
 		// Since some are RSS and some are Atom, get the right date
-		if(dbo_entry.get("timestamp") != null)
+		if(doc_entry.get("timestamp") != null)
 		{
 			dt_entryDate = new DateTime(1970, 1, 1, 0, 0, 0, 0);
-			dt_entryDate = dt_entryDate.plusSeconds(Integer.parseInt(String.valueOf(dbo_entry.get("timestamp"))));
+			dt_entryDate = dt_entryDate.plusSeconds(Integer.parseInt(String.valueOf(doc_entry.get("timestamp"))));
 		}
 		else
 		{
-			if(dbo_entry.get("updated") != null) 
+			if(doc_entry.get("updated") != null) 
 			{
-				dt_entryDate = dtf.parseDateTime(String.valueOf(dbo_entry.get("updated")));
+				dt_entryDate = dtf.parseDateTime(String.valueOf(doc_entry.get("updated")));
 			}
 			else 
 			{
-				dt_entryDate = dtf.parseDateTime(String.valueOf(dbo_entry.get("pubDate")));
+				dt_entryDate = dtf.parseDateTime(String.valueOf(doc_entry.get("pubDate")));
 			}
 			
 		}
@@ -345,32 +340,32 @@ public class Slave implements Runnable
 		return dt_entryDate;
 	}
 	
-	/**Returns a DBObject array parsed from the Entry array.
+	/**Returns a Document array parsed from the Entry array.
 	* @author connorwm
 	* @param col_entries - The entries collection for the feed
 	* @param collectionEmpty - Boolean value for whether or not the feed's collection has any entries
 	* @param entries - Array of Entry downloaded from the feed's Atom or RSS document
 	*/
-	private ArrayList<DBObject> buildEntryList(DBCollection col_entries, boolean collectionEmpty, ArrayList<Entry> entries)
+	private ArrayList<Document> buildEntryList(MongoCollection<Document> col_entries, boolean collectionEmpty, ArrayList<Entry> entries)
 	{
-		ArrayList<DBObject> dbo_entries = new ArrayList<DBObject>();
-		DBObject dbo_entry = new BasicDBObject();
+		ArrayList<Document> doc_entries = new ArrayList<Document>();
+		Document doc_entry = new Document();
 		Entry e_entry = null;
 		
 		for(int entryIndex = 0; entryIndex < entries.size(); entryIndex++)
 		{
-			dbo_entry = new BasicDBObject();
+			doc_entry = new Document();
 			e_entry = entries.get(entryIndex);
 
 			// Add Properties
 			// Especially the feed that it came from
-			dbo_entry.put("feed", (String)f_feed.get(Feed.Properties.name));
+			doc_entry.put("feed", (String)f_feed.get(Feed.Properties.name));
 
 			for(int entryPropertyIndex = 0; entryPropertyIndex < Entry.Properties.values().length; entryPropertyIndex++)
 			{
 				if(e_entry.get(Entry.Properties.values()[entryPropertyIndex]) != null)
 				{
-					dbo_entry.put(Entry.Properties.values()[entryPropertyIndex].toString(), e_entry.get(Entry.Properties.values()[entryPropertyIndex]));
+					doc_entry.put(Entry.Properties.values()[entryPropertyIndex].toString(), e_entry.get(Entry.Properties.values()[entryPropertyIndex]));
 				}
 			}
 			// ---------------------------- Handle links -------------------------------------
@@ -380,21 +375,21 @@ public class Slave implements Runnable
 
 				for(int linkIndex = 0; linkIndex < e_entry.getLinks().size(); linkIndex++)
 				{
-					DBObject dbo_link = new BasicDBObject();
+					Document doc_link = new Document();
 					Link l_link = e_entry.getLinks().get(linkIndex);
 
 					for(int linkPropertyIndex = 0; linkPropertyIndex < Link.Properties.values().length; linkPropertyIndex++)
 					{
 						if(l_link.get(Link.Properties.values()[linkPropertyIndex]) != null)
 						{
-							dbo_link.put(Link.Properties.values()[linkPropertyIndex].toString(), l_link.get(Link.Properties.values()[linkPropertyIndex]));
+							doc_link.put(Link.Properties.values()[linkPropertyIndex].toString(), l_link.get(Link.Properties.values()[linkPropertyIndex]));
 						}
 					}
 
-					dbl_links.add(dbo_link);
+					dbl_links.add(doc_link);
 				}
 
-				dbo_entry.put("link", dbl_links);
+				doc_entry.put("link", dbl_links);
 			}
 			// ---------------------------- Handle authors -------------------------------------
 			if(e_entry.getAuthors().size() > 0)
@@ -403,27 +398,27 @@ public class Slave implements Runnable
 
 				for(int authorIndex = 0; authorIndex < e_entry.getAuthors().size(); authorIndex++)
 				{
-					DBObject dbo_author = new BasicDBObject();
+					Document doc_author = new Document();
 					Author a_author = e_entry.getAuthors().get(authorIndex);
 
 					for(int authorPropertyIndex = 0; authorPropertyIndex < Author.Properties.values().length; authorPropertyIndex++)
 					{
 						if(a_author.get(Author.Properties.values()[authorPropertyIndex]) != null)
 						{
-							dbo_author.put(Author.Properties.values()[authorPropertyIndex].toString(), a_author.get(Author.Properties.values()[authorPropertyIndex]));
+							doc_author.put(Author.Properties.values()[authorPropertyIndex].toString(), a_author.get(Author.Properties.values()[authorPropertyIndex]));
 						}
 					}
 
-					dbl_authors.add(dbo_author);
+					dbl_authors.add(doc_author);
 				}
 
-				dbo_entry.put("author", dbl_authors);
+				doc_entry.put("author", dbl_authors);
 			}
 
-			dbo_entries.add(dbo_entry);	
+			doc_entries.add(doc_entry);	
 		}
 		
-		return dbo_entries;
+		return doc_entries;
 	}
 	
 	/**Gets the corresponding feed document in database for the feed
@@ -432,70 +427,70 @@ public class Slave implements Runnable
 	 * @param col_feeds
 	 * @return
 	 */
-	private DBObject getFeedDocument(Feed f_feed, DBCollection col_feeds)
+	private Document getFeedDocument(Feed f_feed, MongoCollection<Document> col_feeds)
 	{
-		DBObject dbo_feed = null;
-		DBObject dbo_searchQuery = new BasicDBObject();
+		Document doc_feed = null;
+		Document doc_searchQuery = new Document();
 		String str_url = f_feed.get(Feed.Properties.url);
 		
 		// Now find the collection and get the feed's object from the feeds database
-		dbo_searchQuery.put("name", f_feed.get(Feed.Properties.name));
-		dbo_feed = col_feeds.findOne(dbo_searchQuery);
+		doc_searchQuery.put("name", f_feed.get(Feed.Properties.name));
+		doc_feed = (Document) col_feeds.find(doc_searchQuery);
 		
-		lh_slave.write("Feed Search Query: "+dbo_searchQuery.toString());
+		lh_slave.write("Feed Search Query: "+doc_searchQuery.toString());
 		
-		if(dbo_feed == null) dbo_feed = new BasicDBObject(); // Does not exist, create it
+		if(doc_feed == null) doc_feed = new Document(); // Does not exist, create it
 		
-		lh_slave.write("Feed Result:       "+dbo_feed.toString());
+		lh_slave.write("Feed Result:       "+doc_feed.toString());
 		
-		return dbo_feed;		
+		return doc_feed;		
 	}
 	
 	/**Gets the statistics document for the corresponding feed.
 	 * @author connorwm
 	 * @param f_feed - The feed document
 	 * @param col_feedStatistics - MongoDB statistics collection
-	 * @return dbo_feedStatistics or null if the document does not exist
+	 * @return doc_feedStatistics or null if the document does not exist
 	 */
-	private DBObject getStatisticsDocument(Feed f_feed, DBCollection col_feedStatistics)
+	private Document getStatisticsDocument(Feed f_feed, MongoCollection<Document> col_feedStatistics)
 	{
-		DBObject dbo_searchTerm = new BasicDBObject();
+		Document doc_searchTerm = new Document();
 
-		dbo_searchTerm.put("name", f_feed.get(Feed.Properties.name));
-		dbo_searchTerm.put("collection", f_feed.get(Feed.Properties.collection));
+		doc_searchTerm.put("name", f_feed.get(Feed.Properties.name));
+		doc_searchTerm.put("collection", f_feed.get(Feed.Properties.collection));
 
-		DBObject dbo_feedStatistics = col_feedStatistics.findOne(dbo_searchTerm);
+		Document doc_feedStatistics = (Document) col_feedStatistics.find(doc_searchTerm).limit(1);
 		
-		if(dbo_feedStatistics != null)
+		if(doc_feedStatistics != null)
 		{
-			lh_slave.write("Feed Statistics: "+dbo_feedStatistics.toString());
+			lh_slave.write("Feed Statistics: "+doc_feedStatistics.toString());
 		} else {
 			lh_slave.write("Feed Statistics Null");
 		}
 		
-		return dbo_feedStatistics;
+		return doc_feedStatistics;
 	}
 	
 	/**Updates the statistics document for a feed
 	 * @author connorwm
 	 * @param f_feed - The feed for the statistics
-	 * @param dbo_feedStatistics - The statistics document to be posted
+	 * @param doc_feedStatistics - The statistics document to be posted
 	 * @param col_feedStatistics - The statistics collection
 	 */
-	private void updateStatistics(Feed f_feed, DBObject dbo_feedStatistics, DBCollection col_feedStatistics)
+	private void updateStatistics(Feed f_feed, Document doc_feedStatistics, MongoCollection<Document> col_feedStatistics)
 	{
-		WriteResult wr_result = null;
+		UpdateResult ur_feeds = null;
 		
 		lh_slave.write("Updating statistics for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
-		lh_slave.write("New statics document for "+f_feed.get(Feed.Properties.name)+": "+dbo_feedStatistics.toString());
+		lh_slave.write("New statics document for "+f_feed.get(Feed.Properties.name)+": "+doc_feedStatistics.toString());
 		
 		// But we need to change the timestamp
-		dbo_feedStatistics.put("timestamp", f_feed.get(Feed.Properties.timestamp));				
+		doc_feedStatistics.put("timestamp", f_feed.get(Feed.Properties.timestamp));				
 		lh_slave.write("Added timestamp of "+f_feed.get(Feed.Properties.timestamp)+" to statistics of "+f_feed.get(Feed.Properties.name));
 
 		// And now submit
 		try {
-			wr_result = col_feedStatistics.update(new BasicDBObject("_id", dbo_feedStatistics.get("_id")), dbo_feedStatistics);		
+			ur_feeds = col_feedStatistics.updateOne(new Document("_id", doc_feedStatistics.get("_id")), doc_feedStatistics);		
 		} 
 		catch (MongoException excep_m)
 		{
@@ -503,32 +498,41 @@ public class Slave implements Runnable
 		}
 		finally
 		{
-			if(wr_result.getN() == 1) lh_slave.write("Successfully updated statistics for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+			if(ur_feeds.getModifiedCount() == 1) lh_slave.write("Successfully updated statistics for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
 			else 
 			{
-				lh_slave.write(Type.Error, "Failed to update statistics for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"\r\nN: "+wr_result.getN()+"\r\n"+wr_result.getError());
+				lh_slave.write(Type.Error, "Failed to update statistics for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"\r\n: "+
+								"Matched: "+ur_feeds.getMatchedCount()+"; Modified: "+ur_feeds.getModifiedCount()+"; Message: "+ur_feeds.toString());
 			}
 		}
 	}
 	
 	/**Post entries to the feed's collection
 	 * @author connorwm
-	 * @param arr_entries - ArrayList of type DBObject of the entries to be posted
+	 * @param arr_entries - ArrayList of type Document of the entries to be posted
 	 * @param col_entries - The feed's entry collection
 	 */
-	private void postEntries(ArrayList<DBObject> arr_entries, DBCollection col_entries)
+	private void postEntries(ArrayList<Document> arr_entries, MongoCollection<Document> col_entries)
 	{
 		lh_slave.write("Posting "+arr_entries.size()+" entries for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
-		WriteResult insertResult = col_entries.insert(arr_entries);
 		
-		if(insertResult.getError() == null)
+		try{
+			col_entries.insertMany(arr_entries);
+		}
+		catch(MongoBulkWriteException excep_bulkWrite)
+		{
+			lh_slave.write(Type.Error, "Failed to post entries to "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+": \r\n"+excep_bulkWrite.getWriteErrors().toString());
+		}
+		catch(MongoException excep_other)
+		{
+			lh_slave.write(Type.Error, "Failed to post entries to "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+": \r\n"+excep_other.getMessage());
+		}
+		finally
 		{
 			lh_slave.write("Successfully posted entries for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
 			
 			// Only update the statistics when we actually successfully post
-			updateStatistics(f_feed, dbo_feedStatistics, col_feedStatistics);
-		} else {
-			lh_slave.write(Type.Error, "Could not post entries for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"; Last error:\r\n"+insertResult.getError());
+			updateStatistics(f_feed, doc_feedStatistics, col_feedStatistics);
 		}
 	}
 	
@@ -536,17 +540,42 @@ public class Slave implements Runnable
 	 *  @author connorwm
 	 * 	@param arr_entries - List of entries from a parsed feed
 	 */
-	private void processEntries(ArrayList<DBObject> arr_entries)
+	private void processEntries(ArrayList<Document> arr_entries)
 	{		
 		lh_slave.write("Processing entries for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+"...");
 		
-		for(DBObject dbo_entry : arr_entries)
+		for(Document doc_entry : arr_entries)
 		{
-			p_processor = new Processor((String)dbo_entry.get("description"), "UTF-8", s_settings.getProcessorIgnoreWords(), null, f_feed.get(Feed.Properties.collection), dx_executor, l_main); 
+			p_processor = new Processor((String)doc_entry.get("description"), "UTF-8", s_settings.getProcessorIgnoreWords(), null, f_feed.get(Feed.Properties.collection), dx_executor, l_main); 
 			p_processor.run();
 		}
 		
 		lh_slave.write("Processing complete");
+	}
+	
+	/**Given a database's collection name iterator and name determine if the collection exists in the database
+	 * @author connorwm
+	 * @param it_collectionNames Database collection name iterator
+	 * @param str_name Name of collection to find in database
+	 * @return
+	 */
+	private boolean collectionExists(MongoIterable<String> it_collectionNames, String str_name)
+	{
+		boolean b_found = false;
+		MongoCursor<String> cur_collectionNames = it_collectionNames.iterator();
+		String str_currentCollectionName = cur_collectionNames.next();
+		
+		while(cur_collectionNames.hasNext())
+		{
+			if(str_currentCollectionName == str_name) {
+				b_found = true;
+				break;
+			}
+			
+			str_currentCollectionName = cur_collectionNames.next();
+		}
+		
+		return b_found;
 	}
 	
 	public void setFuture(Future<?> ftr_future)

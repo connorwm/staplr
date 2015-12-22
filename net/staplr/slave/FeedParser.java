@@ -1,38 +1,28 @@
 package net.staplr.slave;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-
+import org.bson.Document;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import com.mongodb.BasicDBObject;
-import com.mongodb.DBCollection;
-import com.mongodb.DBCursor;
-import com.mongodb.DBObject;
-
 import net.staplr.common.feed.Entry;
 import net.staplr.common.feed.Feed;
 import net.staplr.common.feed.FeedDocument;
-import net.staplr.common.feed.FeedDocument.Properties;
 import net.staplr.logging.Entry.Type;
-import net.staplr.logging.Log;
 import net.staplr.logging.LogHandle;
 
 public class FeedParser
 {
 	private FeedDocument fd_feedDocument;
 	private Feed f_feed;
-	private DBObject dbo_feed;
+	private Document doc_feed;
 	private LogHandle lh_slave;
 	
-	public FeedParser(FeedDocument fd_feedDocument, Feed f_feed, DBObject dbo_feed, LogHandle lh_slave)
+	public FeedParser(FeedDocument fd_feedDocument, Feed f_feed, Document doc_feed, LogHandle lh_slave)
 	{
 		this.fd_feedDocument = fd_feedDocument;
 		this.f_feed = f_feed;
-		this.dbo_feed = dbo_feed;
+		this.doc_feed = doc_feed;
 		this.lh_slave = lh_slave;
 	}
 	
@@ -43,66 +33,66 @@ public class FeedParser
 			String str_property = FeedDocument.Properties.values()[feedDocumentPropertyIndex].toString();
 			FeedDocument.Properties p_property = FeedDocument.Properties.values()[feedDocumentPropertyIndex];
 
-			//log_slave.write("Property "+str_property+": "+dbo_feed.get(str_property)+"|"+fd_feedDocument.get(p_property));
+			//log_slave.write("Property "+str_property+": "+doc_feed.get(str_property)+"|"+fd_feedDocument.get(p_property));
 
 			// If the new document has a property that the old one does not
-			if(dbo_feed.get(str_property) == null && fd_feedDocument.get(p_property) != null)
+			if(doc_feed.get(str_property) == null && fd_feedDocument.get(p_property) != null)
 			{
 				//log_slave.write("Didn't have, adding "+str_property);
-				dbo_feed.put(str_property, (String)fd_feedDocument.get(p_property));
+				doc_feed.put(str_property, (String)fd_feedDocument.get(p_property));
 			}
 			// If the old document has a property that the new one does not
-			else if (dbo_feed.get(str_property) != null && fd_feedDocument.get(p_property) == null) 
+			else if (doc_feed.get(str_property) != null && fd_feedDocument.get(p_property) == null) 
 			{
 				if(str_property != "location" && str_property != "ttl")
 				{
 					//log_slave.write("Removing "+str_property);
-					dbo_feed.removeField(str_property);
+					doc_feed.remove(str_property);
 				}
 			} 
 			// If the old document has a property that the new one has a different version of
-			else if (dbo_feed.get(str_property) != null && fd_feedDocument.get(p_property) != null && String.valueOf(dbo_feed.get(str_property)) != String.valueOf(fd_feedDocument.get(p_property)))
+			else if (doc_feed.get(str_property) != null && fd_feedDocument.get(p_property) != null && String.valueOf(doc_feed.get(str_property)) != String.valueOf(fd_feedDocument.get(p_property)))
 			{
 				//log_slave.write("Updating "+str_property);
-				dbo_feed.put(FeedDocument.Properties.values()[feedDocumentPropertyIndex].toString(), (String)fd_feedDocument.get(FeedDocument.Properties.values()[feedDocumentPropertyIndex]));
+				doc_feed.put(FeedDocument.Properties.values()[feedDocumentPropertyIndex].toString(), (String)fd_feedDocument.get(FeedDocument.Properties.values()[feedDocumentPropertyIndex]));
 			}
 
 			// Add authors if non-existent
-			if(dbo_feed.get("link") == null && fd_feedDocument.getLinks().keySet().size() > 0)
+			if(doc_feed.get("link") == null && fd_feedDocument.getLinks().keySet().size() > 0)
 			{
 				//log_slave.write("Had no links, adding all");
-				dbo_feed.put("link", fd_feedDocument.getLinks());
+				doc_feed.put("link", fd_feedDocument.getLinks());
 			}
 			// Update if different
-			else if(dbo_feed.get("link") != null && fd_feedDocument.getLinks() != dbo_feed.get("link"))
+			else if(doc_feed.get("link") != null && fd_feedDocument.getLinks() != doc_feed.get("link"))
 			{
 				//log_slave.write("Adding a missing link");
-				dbo_feed.put("link", fd_feedDocument.getLinks());
+				doc_feed.put("link", fd_feedDocument.getLinks());
 			}
 			// Remove if null
-			else if(dbo_feed.get("link") != null && fd_feedDocument.getLinks() == null)
+			else if(doc_feed.get("link") != null && fd_feedDocument.getLinks() == null)
 			{
 				//log_slave.write("New had no links but old did, removing all");
-				dbo_feed.removeField("link");
+				doc_feed.remove("link");
 			}
 
 			// Add authors if non-existent
-			if(dbo_feed.get("author") == null && !fd_feedDocument.getAuthors().toMap().isEmpty())
+			if(doc_feed.get("author") == null && !fd_feedDocument.getAuthors().toMap().isEmpty())
 			{
 				//log_slave.write("Had no authors, adding all");
-				dbo_feed.put("author", fd_feedDocument.getAuthors());
+				doc_feed.put("author", fd_feedDocument.getAuthors());
 			}
 			// Update if different
-			else if(dbo_feed.get("author") != null && fd_feedDocument.getAuthors() != dbo_feed.get("author"))
+			else if(doc_feed.get("author") != null && fd_feedDocument.getAuthors() != doc_feed.get("author"))
 			{
 				//log_slave.write("Updating authors");
-				dbo_feed.put("author", fd_feedDocument.getAuthors());
+				doc_feed.put("author", fd_feedDocument.getAuthors());
 			}
 			// Remove if null
-			else if(dbo_feed.get("author") != null && fd_feedDocument.getAuthors() == null)
+			else if(doc_feed.get("author") != null && fd_feedDocument.getAuthors() == null)
 			{
 				//log_slave.write("New had no authors but the old did, removing all");
-				dbo_feed.removeField("author");
+				doc_feed.remove("author");
 				// 9/29/13 12:59 AM
 				// For some reason author was zdnet
 			}
