@@ -26,6 +26,8 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoIterable;
 import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoException;
+import com.mongodb.MongoWriteConcernException;
+import com.mongodb.MongoWriteException;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.result.UpdateResult;
 
@@ -123,16 +125,34 @@ public class Slave implements Runnable
 				lh_slave.write("Parsed "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+":\t"+doc_feed.toString());
 				
 				lh_slave.write("Posting updated feed document of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
-				UpdateResult ur_feeds = col_feeds.updateOne(new Document("_id", doc_feed.get("_id")), doc_feed);
+				UpdateResult ur_feeds = null;
 				
-				if(ur_feeds.getModifiedCount() == 1) 
-				{
-					lh_slave.write("Successfully updated "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+				try {
+					ur_feeds = col_feeds.updateOne(new Document("_id", doc_feed.get("_id")), doc_feed);
 				}
-				else 
+				catch (MongoWriteException excep_write)
 				{
-					lh_slave.write(Type.Error, "Failed to update feed document of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"\r\n: "+
-							"Matched: "+ur_feeds.getMatchedCount()+"; Modified: "+ur_feeds.getModifiedCount()+"; Message: "+ur_feeds.toString());
+					lh_slave.write(Type.Error, "Failed to update feed document for "+f_feed.get(Feed.Properties.name)+" due to MongoWriteException: "+excep_write.getError().toString());
+				}
+				catch (MongoWriteConcernException excep_writeConcern)
+				{
+					lh_slave.write(Type.Error, "Failed to update feed document for "+f_feed.get(Feed.Properties.name)+" due to MongoWriteConcernException: "+excep_writeConcern.getMessage().toString());
+				}
+				catch (MongoException excep_m)
+				{
+					lh_slave.write(Type.Error, "Failed to update feed document for "+f_feed.get(Feed.Properties.name)+" due to MongoException: "+excep_m.toString());
+				}
+				finally
+				{
+					if(ur_feeds.getModifiedCount() == 1) 
+					{
+						lh_slave.write("Successfully updated "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+					}
+					else 
+					{
+						lh_slave.write(Type.Error, "Failed to update feed document of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"\r\n: "+
+								"Matched: "+ur_feeds.getMatchedCount()+"; Modified: "+ur_feeds.getModifiedCount()+"; Message: "+ur_feeds.toString());
+					}
 				}
 				
 				//--------------------------------------------------------------------------
@@ -492,6 +512,14 @@ public class Slave implements Runnable
 		try {
 			ur_feeds = col_feedStatistics.updateOne(new Document("_id", doc_feedStatistics.get("_id")), doc_feedStatistics);		
 		} 
+		catch (MongoWriteException excep_write)
+		{
+			lh_slave.write(Type.Error, "Failed to update statistics for "+f_feed.get(Feed.Properties.name)+" due to MongoWriteException: "+excep_write.getError().toString());
+		}
+		catch (MongoWriteConcernException excep_writeConcern)
+		{
+			lh_slave.write(Type.Error, "Failed to update statistics for "+f_feed.get(Feed.Properties.name)+" due to MongoWriteConcernException: "+excep_writeConcern.getMessage().toString());
+		}
 		catch (MongoException excep_m)
 		{
 			lh_slave.write(Type.Error, "Failed to update statistics for "+f_feed.get(Feed.Properties.name)+" due to MongoException: "+excep_m.toString());
