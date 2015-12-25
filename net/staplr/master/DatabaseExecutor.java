@@ -2,6 +2,8 @@ package net.staplr.master;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.bson.Document;
 
@@ -9,6 +11,8 @@ import FFW.Utility.Error;
 import FFW.Utility.ErrorProne;
 
 import com.mongodb.MongoClient;
+import com.mongodb.MongoClientOptions;
+import com.mongodb.ReadPreference;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
@@ -17,6 +21,7 @@ import com.mongodb.client.MongoIterable;
 import net.staplr.common.Settings;
 import net.staplr.logging.Log;
 import net.staplr.logging.LogHandle;
+import net.staplr.common.DatabaseAuth.Properties;
 import net.staplr.common.feed.Feed;
 import net.staplr.logging.Entry;
 
@@ -25,6 +30,7 @@ public class DatabaseExecutor implements ErrorProne
 	private Settings s_settings;
 	private Error err_last;
 	private LogHandle lh_dbx;
+	private Logger l_mongo;
 	
 	public MongoDatabase db_feeds;
 	public MongoDatabase db_entries;
@@ -36,12 +42,31 @@ public class DatabaseExecutor implements ErrorProne
 	private MongoClient mc_statistics;
 	private MongoClient mc_associations;
 	
+	private MongoClientOptions mco_options;
+	
 	public DatabaseExecutor(Settings s_settings, Log l_main)
 	{
 		this.s_settings = s_settings;
 		err_last = null;
 		
 		lh_dbx = new LogHandle("dbx", l_main);
+		
+		// Setup the Mongo client options for each
+		// - Select quickest connection
+		// - Do not keep sockets alive (throw away and only build when needed)
+		// - Max idle time of 60 seconds
+		mco_options = MongoClientOptions.builder()
+						.readPreference(ReadPreference.nearest())
+						.socketKeepAlive(false)
+						.maxConnectionIdleTime(60000)
+						.build();
+		
+		// Quiet status messages that we are not concerned with
+		// These logging messages will be displayed on startup for Settings due to this being defined afterwards
+		// Leave this as such to ensure we have enough output to troubleshoot any database problems without modifying
+		// the code and relaunching
+		l_mongo = Logger.getLogger("org.mongodb.driver");
+		l_mongo.setLevel(Level.SEVERE);
 	}
 	
 	public boolean connect()
@@ -56,7 +81,8 @@ public class DatabaseExecutor implements ErrorProne
 		{
 			mc_feeds = new MongoClient(
 					s_settings.map_databaseAuth.get("feeds").toServerAddress(), 
-					Arrays.asList(s_settings.map_databaseAuth.get("feeds").toMongoCredential())
+					Arrays.asList(s_settings.map_databaseAuth.get("feeds").toMongoCredential()),
+					mco_options
 					);
 			
 			db_feeds = mc_feeds.getDatabase("feeds");
@@ -69,7 +95,7 @@ public class DatabaseExecutor implements ErrorProne
 		finally 
 		{
 			// Unchecked finally blocks from here down
-			lh_dbx.write("Connected to feeds database");
+			lh_dbx.write("Connected to feeds database");			
 			
 		//-------------------------------------------------------------------------------------------------------------
 		// Entries
@@ -78,7 +104,8 @@ public class DatabaseExecutor implements ErrorProne
 			{				
 				mc_entries = new MongoClient(
 						s_settings.map_databaseAuth.get("entries").toServerAddress(), 
-						Arrays.asList(s_settings.map_databaseAuth.get("entries").toMongoCredential())
+						Arrays.asList(s_settings.map_databaseAuth.get("entries").toMongoCredential()),
+						mco_options
 						);
 				
 				db_entries = mc_entries.getDatabase("entries");
@@ -99,7 +126,8 @@ public class DatabaseExecutor implements ErrorProne
 				{					
 					mc_statistics = new MongoClient(
 							s_settings.map_databaseAuth.get("statistics").toServerAddress(), 
-							Arrays.asList(s_settings.map_databaseAuth.get("statistics").toMongoCredential())
+							Arrays.asList(s_settings.map_databaseAuth.get("statistics").toMongoCredential()),
+							mco_options
 							);
 					
 					db_statistics = mc_statistics.getDatabase("statistics");
@@ -120,7 +148,8 @@ public class DatabaseExecutor implements ErrorProne
 					{
 						mc_associations = new MongoClient(
 								s_settings.map_databaseAuth.get("associations").toServerAddress(), 
-								Arrays.asList(s_settings.map_databaseAuth.get("associations").toMongoCredential())
+								Arrays.asList(s_settings.map_databaseAuth.get("associations").toMongoCredential()),
+								mco_options
 								);
 						
 						db_associations = mc_associations.getDatabase("associations");
@@ -140,10 +169,6 @@ public class DatabaseExecutor implements ErrorProne
 				
 			}
 		}
-		
-		// Close since we won't be using them :(
-		mc_feeds.close();
-		mc_entries.close();
 		
 		return b_success;
 	}
@@ -176,6 +201,4 @@ public class DatabaseExecutor implements ErrorProne
 	public Error getLastError() {
 		return err_last;
 	}
-	
-	
 }
