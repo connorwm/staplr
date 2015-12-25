@@ -365,6 +365,9 @@ public class Settings
 		{
 			b_loadStatus = false;
 		}
+		
+		// Close settings Mongo client as it does not have a purpose being left open
+		mc_settings.close();
 	}
 	
 	/**Gets a setting
