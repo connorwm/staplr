@@ -42,7 +42,7 @@ public class FeedParser
 				doc_feed.put(str_property, (String)fd_feedDocument.get(p_property));
 			}
 			// If the old document has a property that the new one does not
-			else if (doc_feed.get(str_property) != null && fd_feedDocument.get(p_property) == null) 
+			else if (doc_feed.get(str_property) != null && fd_feedDocument.get(p_property) == null)
 			{
 				if(str_property != "location" && str_property != "ttl")
 				{
