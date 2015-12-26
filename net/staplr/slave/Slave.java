@@ -5,7 +5,6 @@ import java.util.concurrent.Future;
 
 import org.bson.Document;
 import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 import net.staplr.common.Settings;
@@ -14,6 +13,7 @@ import net.staplr.common.feed.Entry;
 import net.staplr.common.feed.Feed;
 import net.staplr.common.feed.FeedDocument;
 import net.staplr.common.feed.Link;
+import net.staplr.common.feed.Feed.Properties;
 import net.staplr.logging.Log;
 import net.staplr.logging.Entry.Type;
 import net.staplr.logging.LogHandle;
@@ -44,6 +44,7 @@ public class Slave implements Runnable
 	
 	private Settings s_settings;
 	private Feed f_feed;
+	private Document doc_feed;
 	private LogHandle lh_slave;
 	private Document doc_feedStatistics;
 	private MongoCollection<Document> col_feedStatistics;
@@ -64,24 +65,31 @@ public class Slave implements Runnable
 		this.l_main = l_main;
 		
 		lh_slave = new LogHandle("slv", l_main);
-		
 	}
 	
 	public void run()
 	{					
-		lh_slave.write("Slave working on "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+		lh_slave.write("Slave working on "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
 
 		// Load Up Feed's Statistics
 		col_feedStatistics = db_statistics.getCollection("feeds");
-		doc_feedStatistics = getStatisticsDocument(f_feed, col_feedStatistics);	
+		if(col_feedStatistics == null) lh_slave.write(Type.Error, "Statistics collection is null for "+f_feed.get(Feed.Properties.collection));
+		
+		doc_feedStatistics = getStatisticsDocument(f_feed, col_feedStatistics);
+		if(doc_feedStatistics != null) lh_slave.write("Retrieved feed statistics document for "+f_feed.get(Feed.Properties.collection));
+		else lh_slave.write(Type.Error, "Failed to get feed statistics document for "+f_feed.get(Feed.Properties.collection));
+		
+		lh_slave.write("Getting feed document for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
 		
 		// Get the collections because we will need their documents
 		MongoCollection<Document> col_entries = db_entries.getCollection(f_feed.get(Feed.Properties.collection));
 		MongoCollection<Document> col_feeds = db_feed.getCollection(f_feed.get(Feed.Properties.collection));
-		Document doc_feed = getFeedDocument(f_feed, col_feeds);
 		
-		// Check entries collection
+		doc_feed = getFeedDocument(f_feed, col_feeds);
+		if(doc_feed == null) lh_slave.write("Feed document for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+" is null");
 		
+		// Check entries collection		
+		lh_slave.write("Checking entries collection for "+f_feed.get(Feed.Properties.collection));
 		
 		if(!collectionExists(db_entries.listCollectionNames(), f_feed.get(Feed.Properties.collection)))
 		{
@@ -109,49 +117,63 @@ public class Slave implements Runnable
 			if(!feedDownloader.run())
 			{
 				// Couldn't be downloaded
-				lh_slave.write("Could not download feed: "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+". Last Error: \r\n"+feedDownloader.getLastError().toString());
+				lh_slave.write("Could not download feed: "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+". Last Error: \r\n"+feedDownloader.getLastError().toString());
 			} else {			
 				//--------------------------------------------------------------------------
 				// Parse feed document
 				//--------------------------------------------------------------------------
 				
 				// It was downloaded so lets convert it into a FeedDocument to work with
-				lh_slave.write("Downloaded "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+				lh_slave.write("Downloaded "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
 				FeedDocument fd_feedDocument = feedDownloader.getFeedDocument();
 				
-				lh_slave.write("Parsing "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"...");
+				lh_slave.write("Parsing "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+"...");
 				feedParser = new FeedParser(fd_feedDocument, f_feed, doc_feed, lh_slave);
 				feedParser.parse();
-				lh_slave.write("Parsed "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+":\t"+doc_feed.toString());
+				lh_slave.write("Parsed "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+":\t"+doc_feed.toString());
 				
-				lh_slave.write("Posting updated feed document of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+				lh_slave.write("Posting updated feed document of "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
 				UpdateResult ur_feeds = null;
+				Document doc_searchQuery = new Document();
+				
+				// Remove _id as the database will specify this and set the name of the feed to update
+				doc_feed.remove("_id");
+				doc_searchQuery.put("name", doc_feed.get("name").toString());
 				
 				try {
-					ur_feeds = col_feeds.updateOne(new Document("_id", doc_feed.get("_id")), doc_feed);
+					ur_feeds = col_feeds.updateOne(doc_searchQuery, new Document("$set", doc_feed));
 				}
 				catch (MongoWriteException excep_write)
 				{
-					lh_slave.write(Type.Error, "Failed to update feed document for "+f_feed.get(Feed.Properties.name)+" due to MongoWriteException: "+excep_write.getError().toString());
+					lh_slave.write(Type.Error, "Failed to update feed document for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+" due to MongoWriteException: "+excep_write.getError().toString());
 				}
 				catch (MongoWriteConcernException excep_writeConcern)
 				{
-					lh_slave.write(Type.Error, "Failed to update feed document for "+f_feed.get(Feed.Properties.name)+" due to MongoWriteConcernException: "+excep_writeConcern.getMessage().toString());
+					lh_slave.write(Type.Error, "Failed to update feed document for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+" due to MongoWriteConcernException: "+excep_writeConcern.getMessage().toString());
 				}
 				catch (MongoException excep_m)
 				{
-					lh_slave.write(Type.Error, "Failed to update feed document for "+f_feed.get(Feed.Properties.name)+" due to MongoException: "+excep_m.toString());
+					lh_slave.write(Type.Error, "Failed to update feed document for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+" due to MongoException: "+excep_m.toString());
+				}
+				catch (Exception excep_other)
+				{
+					excep_other.printStackTrace();
+					if(ur_feeds == null) lh_slave.write(Type.Error, "UpdateResult is null");
 				}
 				finally
 				{
-					if(ur_feeds.getModifiedCount() == 1) 
+					if(ur_feeds.getModifiedCount() == 1)
 					{
-						lh_slave.write("Successfully updated "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+						lh_slave.write("Successfully updated "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
+					}
+					else if(ur_feeds.getModifiedCount() == 0 && ur_feeds.getMatchedCount() == 1)
+					{
+						lh_slave.write("Statistics document for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+" was not updated due to no changes");
 					}
 					else 
 					{
-						lh_slave.write(Type.Error, "Failed to update feed document of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"\r\n: "+
-								"Matched: "+ur_feeds.getMatchedCount()+"; Modified: "+ur_feeds.getModifiedCount()+"; Message: "+ur_feeds.toString());
+						lh_slave.write(Type.Error, "Failed to update feed document of "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+"\r\n: "+
+								"Matched: "+ur_feeds.getMatchedCount()+"; Modified: "+ur_feeds.getModifiedCount()+";");
 					}
 				}
 				
@@ -159,14 +181,11 @@ public class Slave implements Runnable
 				// Parse entries
 				//--------------------------------------------------------------------------
 				
-				lh_slave.write("Working on entries for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+":");
+				lh_slave.write("Working on entries for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+":");
 
-				Document doc_entry = null;
 				ArrayList<Document> arr_entries = new ArrayList<Document>();
 				ArrayList<Entry> entries = fd_feedDocument.getEntries();
-				Entry e_entry = null;
 				boolean collectionEmpty = false;
-				DateTimeFormatter dtf = DateTimeFormat.forPattern((String)f_feed.get(Feed.Properties.dateFormat));
 
 				// Check if collection is empty
 				if(col_entries.count() > 0)
@@ -174,65 +193,66 @@ public class Slave implements Runnable
 					// Check if there are entries but they're just not from this feed
 					if(findMostRecentEntry(String.valueOf(f_feed.get(Feed.Properties.name)), col_entries) == null)
 					{
-						lh_slave.write(f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+" does not have entries, collection only from other feeds");
+						lh_slave.write(f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+" does not have entries, collection only from other feeds");
 						collectionEmpty = true;
 					}
 					else
 					{
-						lh_slave.write(f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+" already has entries");
+						lh_slave.write(f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+" already has entries");
 					}
 				} else {
-					lh_slave.write(f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+" does not have entries");
+					lh_slave.write(f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+" does not have entries");
 					collectionEmpty = true;
 				}
 				
 				// Build entries
-				lh_slave.write("Building entry list for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+				lh_slave.write("Building entry list for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
 				arr_entries = buildEntryList(col_feeds, collectionEmpty, entries);
-				lh_slave.write("Built entry list for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+				lh_slave.write("Built entry list for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
 				
 				//  If doc_entries has entries, then we need to figure out which ones need to be posted
 				if(arr_entries.size() > 0)
 				{
-					lh_slave.write(f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+" has entries to be posted. "+arr_entries.size()+" to be parsed.");
+					lh_slave.write(f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+" has entries to be posted. "+arr_entries.size()+" to be parsed.");
 					
 					if(collectionEmpty)
 					{
-						lh_slave.write(f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+" has no entries; posting all");
+						lh_slave.write(f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+" has no entries; posting all");
 					}
 					else
 					{
 						if(doc_feedStatistics != null)
 						{
-							lh_slave.write("Have statistics document for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+							lh_slave.write("Have statistics document for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
 							
 							if(doc_feedStatistics.get("timestamp") != null)
 							{
-								lh_slave.write(f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+" has most recent date; removing entries before...");
+								lh_slave.write(f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+" has most recent date; removing entries before...");
 								arr_entries = removeEntriesBefore(Long.parseLong(String.valueOf(doc_feedStatistics.get("timestamp"))), arr_entries);
-								lh_slave.write("Removed old entries from entries to be posted for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+								lh_slave.write("Removed old entries from entries to be posted for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
 							}
 							else
 							{
-								lh_slave.write(f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+" does not have a most recent date. Removing old entries...");
+								lh_slave.write(f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+" does not have a most recent date. Removing old entries...");
 								arr_entries = removeOldEntries(arr_entries, f_feed, col_entries);
-								lh_slave.write("Removed old entries from "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+								lh_slave.write("Removed old entries from "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
 							}
 						}
 						else
 						{
-							lh_slave.write("No statistics document for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+". Removing old entries...");
+							lh_slave.write("No statistics document for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+". Removing old entries...");
 							arr_entries = removeOldEntries(arr_entries, f_feed, col_entries);
-							lh_slave.write("Removed old entries from "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+							lh_slave.write("Removed old entries from "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
 						}
 					}
 					
 					postEntries(arr_entries, col_entries);
-					processEntries(arr_entries);
+					// TEMP: Focus on core staplr features for now (12/25/2015 1:34 AM)
+					// processEntries(arr_entries);
 				}
 				else
 				{
-					lh_slave.write("No entries to be posted for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+					lh_slave.write("No entries to be posted for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
 				}
 			}
 		} else {
@@ -255,13 +275,13 @@ public class Slave implements Runnable
 		
 		if(doc_mostRecentEntry != null)
 		{
-			lh_slave.write("Found a most recent entry for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"; removing others before...");
+			lh_slave.write("Found a most recent entry for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+"; removing others before...");
 			doc_entries = removeEntriesBefore(Long.valueOf(String.valueOf(doc_mostRecentEntry.get("timestamp"))), doc_entries);
-			lh_slave.write("Old entries removed from "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"; ready to post");
+			lh_slave.write("Old entries removed from "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+"; ready to post");
 		}
 		else
 		{
-			lh_slave.write("Could not find a most recent entry for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"; all will be posted");
+			lh_slave.write("Could not find a most recent entry for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+"; all will be posted");
 		}
 		
 		return doc_entries;
@@ -321,9 +341,9 @@ public class Slave implements Runnable
 			}
 		}
 		
-		lh_slave.write("Removing "+doc_toBeRemoved.size()+"/"+doc_entries.size()+" of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+		lh_slave.write("Removing "+doc_toBeRemoved.size()+"/"+doc_entries.size()+" of "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
 		doc_entries.removeAll(doc_toBeRemoved);
-		lh_slave.write("Entries to be posted of "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+": "+doc_entries.size());
+		lh_slave.write(doc_entries.size()+" entries to be posted of "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
 		
 		return doc_entries;
 	}
@@ -445,23 +465,39 @@ public class Slave implements Runnable
 	 * @author connorwm
 	 * @param f_feed
 	 * @param col_feeds
-	 * @return
+	 * @return Feed document of collection's specified feed
 	 */
 	private Document getFeedDocument(Feed f_feed, MongoCollection<Document> col_feeds)
 	{
 		Document doc_feed = null;
 		Document doc_searchQuery = new Document();
-		String str_url = f_feed.get(Feed.Properties.url);
 		
 		// Now find the collection and get the feed's object from the feeds database
 		doc_searchQuery.put("name", f_feed.get(Feed.Properties.name));
-		doc_feed = (Document) col_feeds.find(doc_searchQuery);
+		MongoIterable<Document> it_feed = col_feeds.find(doc_searchQuery);
 		
-		lh_slave.write("Feed Search Query: "+doc_searchQuery.toString());
+		try{
+			doc_feed = (Document) col_feeds.find(doc_searchQuery).first();
+		}
+		catch (Exception excep_find)
+		{
+			lh_slave.write(Type.Error, "Could not find feed document for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+"\r\n"+excep_find.toString());
+		}
+		finally
+		{
+			// Does not exist, create it
+			if(doc_feed == null) 
+			{
+				doc_feed = new Document();
+				lh_slave.write("Feed document does not exist; will be created");
+			}
+			else
+			{
+				lh_slave.write("Feed Result:       "+doc_feed.toString());
+			}
+		}
 		
-		if(doc_feed == null) doc_feed = new Document(); // Does not exist, create it
 		
-		lh_slave.write("Feed Result:       "+doc_feed.toString());
 		
 		return doc_feed;		
 	}
@@ -475,17 +511,26 @@ public class Slave implements Runnable
 	private Document getStatisticsDocument(Feed f_feed, MongoCollection<Document> col_feedStatistics)
 	{
 		Document doc_searchTerm = new Document();
+		Document doc_feedStatistics = null;
 
 		doc_searchTerm.put("name", f_feed.get(Feed.Properties.name));
 		doc_searchTerm.put("collection", f_feed.get(Feed.Properties.collection));
-
-		Document doc_feedStatistics = (Document) col_feedStatistics.find(doc_searchTerm).limit(1);
 		
-		if(doc_feedStatistics != null)
+		try{
+			doc_feedStatistics = col_feedStatistics.find(doc_searchTerm).limit(1).first();
+		}
+		catch (Exception excep_find)
 		{
-			lh_slave.write("Feed Statistics: "+doc_feedStatistics.toString());
-		} else {
-			lh_slave.write("Feed Statistics Null");
+			lh_slave.write(Type.Error, "Could not find statistics document for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+"\r\n"+excep_find.toString());
+		}
+		finally
+		{
+			if(doc_feedStatistics != null)
+			{
+				lh_slave.write("Feed Statistics: "+doc_feedStatistics.toString());
+			} else {
+				lh_slave.write("Feed Statistics Null");
+			}
 		}
 		
 		return doc_feedStatistics;
@@ -500,39 +545,53 @@ public class Slave implements Runnable
 	private void updateStatistics(Feed f_feed, Document doc_feedStatistics, MongoCollection<Document> col_feedStatistics)
 	{
 		UpdateResult ur_feeds = null;
+		String str_oldTimestamp = (String) doc_feedStatistics.get("timestamp");
+		Document doc_searchQuery = new Document("name", f_feed.get(Properties.name));
+		doc_searchQuery.put("collection", f_feed.get(Properties.collection));
 		
-		lh_slave.write("Updating statistics for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
-		lh_slave.write("New statics document for "+f_feed.get(Feed.Properties.name)+": "+doc_feedStatistics.toString());
+		lh_slave.write("Updating statistics for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
+		lh_slave.write("New statistics document for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+": "+doc_feedStatistics.toString());
 		
-		// But we need to change the timestamp
-		doc_feedStatistics.put("timestamp", f_feed.get(Feed.Properties.timestamp));				
-		lh_slave.write("Added timestamp of "+f_feed.get(Feed.Properties.timestamp)+" to statistics of "+f_feed.get(Feed.Properties.name));
+		// But we need to change the timestamp if necessary
+		if(str_oldTimestamp.equals(f_feed.get(Properties.timestamp)))
+		{
+			lh_slave.write("No changes to post for statistics document of "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
+		}
+		else
+		{
+			doc_feedStatistics.put("timestamp", f_feed.get(Feed.Properties.timestamp));				
+			lh_slave.write("Added timestamp of "+f_feed.get(Feed.Properties.timestamp)+" to statistics of "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
+			
+			// Remove id as it will be handled by the database
+			doc_feedStatistics.remove("_id");
 
-		// And now submit
-		try {
-			ur_feeds = col_feedStatistics.updateOne(new Document("_id", doc_feedStatistics.get("_id")), doc_feedStatistics);		
-		} 
-		catch (MongoWriteException excep_write)
-		{
-			lh_slave.write(Type.Error, "Failed to update statistics for "+f_feed.get(Feed.Properties.name)+" due to MongoWriteException: "+excep_write.getError().toString());
-		}
-		catch (MongoWriteConcernException excep_writeConcern)
-		{
-			lh_slave.write(Type.Error, "Failed to update statistics for "+f_feed.get(Feed.Properties.name)+" due to MongoWriteConcernException: "+excep_writeConcern.getMessage().toString());
-		}
-		catch (MongoException excep_m)
-		{
-			lh_slave.write(Type.Error, "Failed to update statistics for "+f_feed.get(Feed.Properties.name)+" due to MongoException: "+excep_m.toString());
-		}
-		finally
-		{
-			if(ur_feeds.getModifiedCount() == 1) lh_slave.write("Successfully updated statistics for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
-			else 
+			// And now submit
+			try {
+				ur_feeds = col_feedStatistics.updateOne(doc_searchQuery, new Document("$set", doc_feedStatistics));		
+			} 
+			catch (MongoWriteException excep_write)
 			{
-				lh_slave.write(Type.Error, "Failed to update statistics for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+"\r\n: "+
-								"Matched: "+ur_feeds.getMatchedCount()+"; Modified: "+ur_feeds.getModifiedCount()+"; Message: "+ur_feeds.toString());
+				lh_slave.write(Type.Error, "Failed to update statistics for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+" due to MongoWriteException: "+excep_write.getError().toString());
+			}
+			catch (MongoWriteConcernException excep_writeConcern)
+			{
+				lh_slave.write(Type.Error, "Failed to update statistics for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+" due to MongoWriteConcernException: "+excep_writeConcern.getMessage().toString());
+			}
+			catch (MongoException excep_m)
+			{
+				lh_slave.write(Type.Error, "Failed to update statistics for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+" due to MongoException: "+excep_m.toString());
+			}
+			finally
+			{
+				if(ur_feeds.getModifiedCount() == 1) lh_slave.write("Successfully updated statistics for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
+				else 
+				{
+					lh_slave.write(Type.Error, "Failed to update statistics for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+":\r\n"+
+									"Matched: "+ur_feeds.getMatchedCount()+"; Modified: "+ur_feeds.getModifiedCount()+";");
+				}
 			}
 		}
+		
 	}
 	
 	/**Post entries to the feed's collection
@@ -542,25 +601,29 @@ public class Slave implements Runnable
 	 */
 	private void postEntries(ArrayList<Document> arr_entries, MongoCollection<Document> col_entries)
 	{
-		lh_slave.write("Posting "+arr_entries.size()+" entries for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
+		lh_slave.write("Posting "+arr_entries.size()+" entries for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
 		
-		try{
-			col_entries.insertMany(arr_entries);
-		}
-		catch(MongoBulkWriteException excep_bulkWrite)
+		if(arr_entries.size() > 0)
 		{
-			lh_slave.write(Type.Error, "Failed to post entries to "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+": \r\n"+excep_bulkWrite.getWriteErrors().toString());
-		}
-		catch(MongoException excep_other)
-		{
-			lh_slave.write(Type.Error, "Failed to post entries to "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection)+": \r\n"+excep_other.getMessage());
-		}
-		finally
-		{
-			lh_slave.write("Successfully posted entries for "+f_feed.get(Feed.Properties.name)+" from "+f_feed.get(Feed.Properties.collection));
-			
-			// Only update the statistics when we actually successfully post
-			updateStatistics(f_feed, doc_feedStatistics, col_feedStatistics);
+			try{
+				col_entries.insertMany(arr_entries);
+			}
+			catch(MongoBulkWriteException excep_bulkWrite)
+			{
+				lh_slave.write(Type.Error, "Failed to post entries to "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+": \r\n"+excep_bulkWrite.getWriteErrors().toString());
+			}
+			catch(MongoException excep_other)
+			{
+				lh_slave.write(Type.Error, "Failed to post entries to "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name)+": \r\n"+excep_other.getMessage());
+			}
+			finally
+			{
+				lh_slave.write("Successfully posted entries for "+f_feed.get(Feed.Properties.collection)+":"+f_feed.get(Feed.Properties.name));
+				
+				// Only update the statistics when we actually successfully post and have entries to post
+				// This prevents the statistics document from trying to be updated when there is no change (would generate an error due to no modification done on update)
+				updateStatistics(f_feed, doc_feedStatistics, col_feedStatistics);
+			}
 		}
 	}
 	
@@ -589,13 +652,16 @@ public class Slave implements Runnable
 	 */
 	private boolean collectionExists(MongoIterable<String> it_collectionNames, String str_name)
 	{
+		lh_slave.write("Checking if collection "+str_name+" exists...");
+		
 		boolean b_found = false;
 		MongoCursor<String> cur_collectionNames = it_collectionNames.iterator();
 		String str_currentCollectionName = cur_collectionNames.next();
 		
 		while(cur_collectionNames.hasNext())
-		{
-			if(str_currentCollectionName == str_name) {
+		{			
+			if(str_currentCollectionName.equals(str_name)) {
+				lh_slave.write(str_name+" collection exists");
 				b_found = true;
 				break;
 			}
