@@ -1,28 +1,13 @@
 package net.staplr.master;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-
-import net.staplr.common.Credentials.Properties;
-import net.staplr.common.DatabaseAuth;
-import net.staplr.common.Communicator;
 import net.staplr.common.Settings;
 import net.staplr.common.Settings.Setting;
-import net.staplr.common.feed.Feed;
-import net.staplr.common.message.Message;
-import net.staplr.common.message.MessageExecutor;
-import net.staplr.logging.Entry;
 import net.staplr.logging.Log;
 import net.staplr.logging.Entry.Type;
 import net.staplr.logging.LogHandle;
-import net.staplr.slave.Slave;
 
 public class Master implements Runnable
 {
@@ -38,11 +23,28 @@ public class Master implements Runnable
 	
 	public Master()
 	{
-		l_main = new Log();
-		l_main.setOption(Log.Options.ConsoleOutput, false);
+		l_main = new Log(Log.Instance.Server);
+		l_main.setOption(Log.Options.ConsoleOutput, true);
 		l_main.setOption(Log.Options.FileOutput, true);
 		
 		lh_master = new LogHandle("mas", l_main);
+		
+		lh_master.write("======================================================================================");
+		lh_master.write("		  _________ __                 __        ");
+		lh_master.write("		 /   _____//  |______  ______ |  |_______");
+		lh_master.write("		 \\_____  \\\\   __\\__  \\ \\____ \\|  |\\_  __ \\");
+		lh_master.write("		 /        \\|  |  / __ \\|  |_> >  |_|  | \\/");
+		lh_master.write("		/_______  /|__| (____  /   __/|____/__| ");
+		lh_master.write("		        \\/           \\/|__|              ");
+		lh_master.write("");
+		lh_master.write("	                             _    _                                     _ _   ");
+		lh_master.write("	 ___ ___ _ _ _ ___ ___ ___ _| |  | |_ _ _    _____ ___ ___ ___ ___    _| | |_ ");
+		lh_master.write("	| . | . | | | | -_|  _| -_| . |  | . | | |  |     | . |   | . | . |  | . | . |");
+		lh_master.write("	|  _|___|_____|___|_| |___|___|  |___|_  |  |_|_|_|___|_|_|_  |___|  |___|___|");
+		lh_master.write("	|_|                                  |___|                |___|               ");
+		lh_master.write("");
+		lh_master.write("");
+		lh_master.write("======================================================================================");
 		
 		s_settings = new Settings(l_main);
 		es_components = Executors.newCachedThreadPool();
@@ -51,7 +53,7 @@ public class Master implements Runnable
 		{
 			dx_executor = new DatabaseExecutor(s_settings, l_main);
 			f_feeds = new Feeds(s_settings, dx_executor, l_main);
-			c_communication = new Communication(s_settings, Integer.valueOf((String)s_settings.get(Setting.servicePort)), Integer.valueOf((String)s_settings.get(Setting.masterCommunicationPort)), l_main, f_feeds);
+			c_communication = new Communication(s_settings, Integer.valueOf((String)s_settings.get(Setting.servicePort)), Integer.valueOf((String)s_settings.get(Setting.masterPort)), l_main, f_feeds);
 			
 			b_shouldRun = true;
 		}
@@ -93,33 +95,24 @@ public class Master implements Runnable
 			} else if (str_startType.equals("join")) {
 				lh_master.write("Starting as join");
 
-				s_settings.set(Settings.Setting.masterCommunicationPort, String.valueOf(new Random().nextInt(65535)));
+				s_settings.set(Settings.Setting.masterPort, String.valueOf(new Random().nextInt(65535)));
 				this.run();
 				c_communication.joinMasters();
 			} else {
-				lh_master.write(Type.Error, "Invalid arg[0]");
+				lh_master.write(Type.Error, "Invalid arg[0]: should be join or first");
 			}
-		}
-		else
-		{
-			lh_master.write(Type.Error, "Could not fully connect to databases");
 		}
 	}
 	
 	public void run()
 	{
-		lh_master.write("Connecting to databases...");		
-		if(dx_executor.connect())
-		{			
-			lh_master.write("Connected; now launching components...");
-			
-			es_components.submit(f_feeds);
-			es_components.submit(c_communication);
-			
-			lh_master.write("Components launched");
-		} else {
-			lh_master.write(Type.Error, "Could not fully connect to databases: "+dx_executor.getLastError());
-		}
+		
+		lh_master.write("Launching components...");
+
+		es_components.submit(f_feeds);
+		es_components.submit(c_communication);
+
+		lh_master.write("Components launched");
 	}
 	
 	

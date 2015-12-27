@@ -1,18 +1,14 @@
 package net.staplr.control;
 
-import java.awt.EventQueue;
-
 import javax.swing.JFrame;
 
-import net.staplr.common.Credentials;
+import net.staplr.common.MasterCredentials;
 import net.staplr.common.Communicator.Type;
 import net.staplr.common.TextFieldLogger;
-import net.staplr.common.CopyOfSettings.Setting;
-import net.staplr.common.Credentials.Properties;
+import net.staplr.common.MasterCredentials.Properties;
 import net.staplr.common.Communicator;
 import net.staplr.logging.Log;
 import net.staplr.logging.Log.Options;
-import net.staplr.master.Master;
 import net.staplr.service.MessageExecutor;
 import net.staplr.common.Settings;
 
@@ -29,7 +25,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 
 import javax.swing.JButton;
-import javax.swing.JTextField;
+import javax.swing.JPasswordField;
 import javax.swing.JTextPane;
 import javax.swing.JScrollPane;
 import javax.swing.ScrollPaneConstants;
@@ -48,7 +44,7 @@ public class MasterConnector
 	private JButton btn_connect;
 	private Choice cmbo_master;
 	private JFrame frame;
-	private JTextField txt_masterKey;
+	private JPasswordField pwd_masterKey;
 	private JLabel lbl_status;
 	private JLabel lblLog;
 	private JTextPane txt_log;
@@ -67,7 +63,7 @@ public class MasterConnector
 	
 	public static void main(String[] args)
 	{
-		Log l_masterConnector = new Log("connector.log");
+		Log l_masterConnector = new Log(Log.Instance.Client);
 		l_masterConnector.setOption(Options.ConsoleOutput, true);
 		l_masterConnector.setOption(Options.FileOutput, true);
 		
@@ -117,10 +113,10 @@ public class MasterConnector
 			// Form population
 			// ------------------------------------------
 						
-			for(int i_masterIndex = 0; i_masterIndex < s_settings.c_credentials.size(); i_masterIndex++)
+			for(int i_masterIndex = 0; i_masterIndex < s_settings.mc_credentials.size(); i_masterIndex++)
 			{
-				Credentials c_credentials = s_settings.c_credentials.get(i_masterIndex);
-				cmbo_master.add(c_credentials.get(Properties.location)+":"+c_credentials.get(Properties.port));
+				MasterCredentials c_credentials = s_settings.mc_credentials.get(i_masterIndex);
+				cmbo_master.add(c_credentials.get(Properties.location)+":"+c_credentials.get(Properties.servicePort));
 			}
 			
 			// ------------------------------------------
@@ -159,7 +155,7 @@ public class MasterConnector
 			}
 			public void mouseReleased(MouseEvent me) {
 				if(me.getButton() == MouseEvent.BUTTON1)
-				{
+				{					
 					String str_selectedMaster = cmbo_master.getSelectedItem();
 					String str_location = null;
 					String str_port = null;
@@ -170,6 +166,7 @@ public class MasterConnector
 					catch (Exception e)
 					{
 						e.printStackTrace();
+						return;
 					}
 					finally
 					{
@@ -180,30 +177,28 @@ public class MasterConnector
 						catch(Exception e)
 						{
 							e.printStackTrace();
+							return;
 						}
 						finally
 						{
-							for(int i_masterIndex = 0; i_masterIndex < s_settings.c_credentials.size(); i_masterIndex++)
+							for(int i_masterIndex = 0; i_masterIndex < s_settings.mc_credentials.size(); i_masterIndex++)
 							{
-								Credentials c_credential = s_settings.c_credentials.get(i_masterIndex);
+								MasterCredentials mc_credential = s_settings.mc_credentials.get(i_masterIndex);
 								
-								if(((String)c_credential.get(Properties.location)).equals(str_location))
+								if(((String)mc_credential.get(Properties.location)).equals(str_location))
 								{
-									if(String.valueOf(c_credential.get(Properties.port)).equals(str_port))
+									if(String.valueOf(mc_credential.get(Properties.servicePort)).equals(str_port))
 									{
 										tf_logger.log("Attempting to connect to "+str_selectedMaster, TextFieldLogger.StandardStyle);
 										
-										if(txt_masterKey.getText().length() > 0)
+										if(pwd_masterKey.getPassword().toString().length() > 0)
 										{
-											c_credential.set(Properties.key, txt_masterKey.getText());
+											mc_credential.set(Properties.key, String.valueOf(pwd_masterKey.getPassword()));
 										}
 										
-										
-										if((mx_executor = (MessageExecutor)c_communicator.connect(c_credential)) != null)
+										if((mx_executor = (MessageExecutor)c_communicator.connect(mc_credential)) != null)
 										{
 											tf_logger.log("Connection Success", TextFieldLogger.SuccessStyle);
-											
-											new MasterServiceWindow(mx_executor);
 										}
 										else
 										{
@@ -222,9 +217,10 @@ public class MasterConnector
 		
 		frame.getContentPane().add(btn_connect, "4, 4");
 		
-		txt_masterKey = new JTextField();
-		frame.getContentPane().add(txt_masterKey, "2, 6, fill, default");
-		txt_masterKey.setColumns(10);
+		pwd_masterKey = new JPasswordField();
+		frame.getContentPane().add(pwd_masterKey, "2, 6, fill, default");
+		pwd_masterKey.setColumns(10);
+		pwd_masterKey.setEchoChar('•'); // Bullet Point Character
 		
 		lblLog = new JLabel("Log");
 		frame.getContentPane().add(lblLog, "2, 8");

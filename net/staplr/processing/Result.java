@@ -3,14 +3,19 @@ package net.staplr.processing;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import org.bson.Document;
 import org.joda.time.DateTime;
 
-import com.mongodb.BasicDBObject;
-import com.mongodb.DBCollection;
-import com.mongodb.DBCursor;
-import com.mongodb.DBObject;
+import com.mongodb.MongoException;
+import com.mongodb.MongoWriteConcernException;
+import com.mongodb.MongoWriteException;
 import com.mongodb.WriteResult;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
+import com.mongodb.client.MongoIterable;
+import com.mongodb.client.result.UpdateResult;
 
+import net.staplr.common.feed.Feed;
 import net.staplr.logging.LogHandle;
 import net.staplr.logging.Entry.Type;
 import net.staplr.master.DatabaseExecutor;
@@ -80,19 +85,19 @@ public class Result
 		
 		for(Keyword k_word : arr_keyword)
 		{
-			DBCollection col_word = getCollection(k_word.toString());
+			MongoCollection<Document> col_word = getCollection(k_word.toString());
 			
 			if(col_word != null)
 			{
-				DBObject dbo_association = new BasicDBObject();
+				Document doc_association = new Document();
 				
-				dbo_association.put("entryID", str_entryID);
-				dbo_association.put("entryFeed", str_entryFeed);
-				dbo_association.put("timestamp", (dt_now.getMillis() / 1000)); // TEMP
-				dbo_association.put("occurences",  k_word.getOccurences());
+				doc_association.put("entryID", str_entryID);
+				doc_association.put("entryFeed", str_entryFeed);
+				doc_association.put("timestamp", (dt_now.getMillis() / 1000)); // TEMP
+				doc_association.put("occurences",  k_word.getOccurences());
 				
 				// TEMP: Do not post as of yet
-//				WriteResult wr_result = col_word.insert(dbo_association);
+//				WriteResult wr_result = col_word.insert(doc_association);
 //				
 //				if(wr_result.getN() == 1) lh_processor.write("Successfully associated '"+k_word.toString()+"' with "+str_entryFeed+":"+str_entryID);
 //				else lh_proccessor.write("Failed to associate '"+k_word.toString()+"' with "+str_entryFeed+":"+str_entryID);
@@ -110,60 +115,69 @@ public class Result
 		//postTrendData(arr_keyword);
 	}
 	
-	private DBCollection getCollection(String str_name)
+	private MongoCollection<Document> getCollection(String str_name)
 	{
-		DBCollection collection = null;
+		MongoCollection<Document> collection = null;
 		
-		if(!dx_executor.db_associations.collectionExists(str_name))
+		if(!collectionExists(dx_executor.db_associations.listCollectionNames(), str_name))
 		{
-			collection = dx_executor.db_associations.createCollection(str_name, null);
-		} else {
-			collection = dx_executor.db_associations.getCollection(str_name);
+			dx_executor.db_associations.createCollection(str_name);
 		}
+		
+		collection = dx_executor.db_associations.getCollection(str_name);
 		
 		return collection;
 	}
 	
 	private void postTrendData(ArrayList<Keyword> arr_keywords)
 	{
-		DBCollection col_trends = getCollection("_trends");
+		MongoCollection<Document> col_trends = getCollection("_trends");
 		DateTime dt_now = new DateTime();
 		String str_currentTrendDocument = dt_now.toString("M-d-yyyy");
-		DBObject dbo_query = new BasicDBObject();
-		DBObject dbo_currentTrendDocument = null;
+		Document doc_query = new Document();
+		Document doc_currentTrendDocument = null;
 		
-		dbo_query.put("_date", str_currentTrendDocument);
+		doc_query.put("_date", str_currentTrendDocument);
+		doc_currentTrendDocument = col_trends.find(doc_query).first();
+		MongoCursor<Document> cur_trendResult = col_trends.find(doc_query).iterator();
+		int i_trendDocumentCount = 0;
 		
-		DBCursor dbc_result = col_trends.find(dbo_query);
+		// Due to there being no way to get a count from the iterator itself, count using a cursor
+		// until we run out of documents
+		while(cur_trendResult.hasNext()) {
+			i_trendDocumentCount++;
+			cur_trendResult.next();			
+		}
 		
-		if(dbc_result.count() == 1)
+		if(doc_currentTrendDocument != null)
 		{
 			lh_processor.write("Found trend document");
-			dbo_currentTrendDocument = dbc_result.next();
-		}
-		else if(dbc_result.count() == 0)
-		{
-			lh_processor.write("Trend document not found; will create one");
-			
-			dbo_currentTrendDocument = new BasicDBObject();
-			dbo_currentTrendDocument.put("_date", str_currentTrendDocument);
 		}
 		else
 		{
-			lh_processor.write(Type.Error, "Multiple trend documents found for "+str_currentTrendDocument+"; administrative action necessary");
+			lh_processor.write("Trend document not found; will create one");
+			
+			doc_currentTrendDocument = new Document();
+			doc_currentTrendDocument.put("_date", str_currentTrendDocument);
 		}
 		
-		if(dbo_currentTrendDocument != null)
+		// Log notification if necessary for multiple trend documents
+		if(i_trendDocumentCount > 1)
+		{
+			lh_processor.write(Type.Warning, "Multiple trend documents found for "+str_currentTrendDocument+"; administrative action necessary");
+		}
+		
+		if(doc_currentTrendDocument != null)
 		{
 			for(Keyword k_keyword : arr_keywords)
 			{
-				if(dbo_currentTrendDocument.containsField(k_keyword.toString()))
+				if(doc_currentTrendDocument.containsKey(k_keyword.toString()))
 				{
 					int i_occurences = -1;
 					
 					try
 					{
-						i_occurences = (Integer)dbo_currentTrendDocument.get(k_keyword.toString());
+						i_occurences = (Integer)doc_currentTrendDocument.get(k_keyword.toString());
 					}
 					catch (Exception e) 
 					{
@@ -173,19 +187,19 @@ public class Result
 					
 					i_occurences += 1;
 					
-					dbo_currentTrendDocument.put(k_keyword.toString(), i_occurences);					
+					doc_currentTrendDocument.put(k_keyword.toString(), i_occurences);					
 				}
 				else
 				{
-					dbo_currentTrendDocument.put(k_keyword.toString(), 1);		
+					doc_currentTrendDocument.put(k_keyword.toString(), 1);		
 				}
 			}
 			
-			if(dbc_result.count() == 1)
+			if(i_trendDocumentCount >= 1)
 			{
-				WriteResult wr_updateOccurences = col_trends.update(dbo_query, dbo_currentTrendDocument);
+				UpdateResult ur_updateOccurences = col_trends.updateOne(doc_query, doc_currentTrendDocument);
 				
-				if(wr_updateOccurences.getN() == 1)
+				if(ur_updateOccurences.getModifiedCount() == 1)
 				{
 					lh_processor.write("Successfully updated "+str_currentTrendDocument+" trend document");
 				}
@@ -196,18 +210,52 @@ public class Result
 			}
 			else
 			{
-				WriteResult wr_addTrendDocument = col_trends.insert(dbo_currentTrendDocument);
-				
-				if(wr_addTrendDocument.getN() == 1)
+				try {
+					col_trends.insertOne(doc_currentTrendDocument);
+				} 
+				catch (MongoWriteException excep_write)
+				{
+					lh_processor.write(Type.Error, "Failed to insert trends document for "+str_currentTrendDocument+" due to MongoWriteException: "+excep_write.getError().toString());
+				}
+				catch (MongoWriteConcernException excep_writeConcern)
+				{
+					lh_processor.write(Type.Error, "Failed to insert trends document for "+str_currentTrendDocument+" due to MongoWriteConcernException: "+excep_writeConcern.getMessage().toString());
+				}
+				catch (MongoException excep_m)
+				{
+					lh_processor.write(Type.Error, "Failed to insert trends document for "+str_currentTrendDocument+" due to MongoException: "+excep_m.toString());
+				}
+				finally
 				{
 					lh_processor.write("Successfully inserted "+str_currentTrendDocument+" trend document");
-				}
-				else
-				{
-					lh_processor.write(Type.Error, "Failed to insert trends document for "+str_currentTrendDocument);
 				}
 			}
 			
 		}
+	}
+	
+	/**Given a database's collection name iterator and name determine if the collection exists in the database
+	 * @author connorwm
+	 * @param it_collectionNames Database collection name iterator
+	 * @param str_name Name of collection to find in database
+	 * @return
+	 */
+	private boolean collectionExists(MongoIterable<String> it_collectionNames, String str_name)
+	{
+		boolean b_found = false;
+		MongoCursor<String> cur_collectionNames = it_collectionNames.iterator();
+		String str_currentCollectionName = cur_collectionNames.next();
+		
+		while(cur_collectionNames.hasNext())
+		{
+			if(str_currentCollectionName == str_name) {
+				b_found = true;
+				break;
+			}
+			
+			str_currentCollectionName = cur_collectionNames.next();
+		}
+		
+		return b_found;
 	}
 }

@@ -69,7 +69,7 @@ public class SlaveMaster implements Runnable
 			
 			if(waittime > 0)
 			{
-				lh_sm.write("Waiting " + (waittime * 1000 * 60) + " minutes...");
+				lh_sm.write("Waiting " + ( waittime / (1000 * 60) ) + " minute(s)...");
 				
 				try{
 					Thread.sleep(waittime);

@@ -1,4 +1,6 @@
 package net.staplr.common;
+import com.mongodb.MongoCredential;
+import com.mongodb.ServerAddress;
 
 public class DatabaseAuth
 {
@@ -40,6 +42,16 @@ public class DatabaseAuth
 		str_result+="}";
 		
 		return str_result;
+	}
+	
+	public ServerAddress toServerAddress()
+	{
+		return new ServerAddress(String.valueOf(properties[Properties.location.ordinal()]), Integer.valueOf(properties[Properties.port.ordinal()].toString()));
+	}
+	
+	public MongoCredential toMongoCredential()
+	{
+		return MongoCredential.createCredential(String.valueOf(properties[Properties.username.ordinal()]), String.valueOf(properties[Properties.database.ordinal()]), String.valueOf(properties[Properties.password.ordinal()]).toCharArray());
 	}
 	
 	public boolean isComplete()

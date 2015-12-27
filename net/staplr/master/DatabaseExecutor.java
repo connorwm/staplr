@@ -1,23 +1,27 @@
 package net.staplr.master;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import org.bson.Document;
 
 import FFW.Utility.Error;
-import FFW.Utility.Error.Type;
 import FFW.Utility.ErrorProne;
 
-import com.mongodb.DB;
-import com.mongodb.DBCollection;
-import com.mongodb.DBCursor;
-import com.mongodb.DBObject;
-import com.mongodb.Mongo;
+import com.mongodb.MongoClient;
+import com.mongodb.MongoClientOptions;
+import com.mongodb.ReadPreference;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.MongoIterable;
 
-import net.staplr.common.DatabaseAuth;
 import net.staplr.common.Settings;
 import net.staplr.logging.Log;
-import net.staplr.logging.Log.Options;
 import net.staplr.logging.LogHandle;
-import net.staplr.slave.Slave;
+import net.staplr.common.DatabaseAuth.Properties;
 import net.staplr.common.feed.Feed;
 import net.staplr.logging.Entry;
 
@@ -26,16 +30,19 @@ public class DatabaseExecutor implements ErrorProne
 	private Settings s_settings;
 	private Error err_last;
 	private LogHandle lh_dbx;
+	private Logger l_mongo;
 	
-	public DB db_feeds;
-	public DB db_entries;
-	public DB db_statistics;
-	public DB db_associations;
+	public MongoDatabase db_feeds;
+	public MongoDatabase db_entries;
+	public MongoDatabase db_statistics;
+	public MongoDatabase db_associations;
 	
-	private Mongo m_feeds;
-	private Mongo m_entries;
-	private Mongo m_statistics;
-	private Mongo m_associations;
+	private MongoClient mc_feeds;
+	private MongoClient mc_entries;
+	private MongoClient mc_statistics;
+	private MongoClient mc_associations;
+	
+	private MongoClientOptions mco_options;
 	
 	public DatabaseExecutor(Settings s_settings, Log l_main)
 	{
@@ -43,16 +50,42 @@ public class DatabaseExecutor implements ErrorProne
 		err_last = null;
 		
 		lh_dbx = new LogHandle("dbx", l_main);
+		
+		// Setup the Mongo client options for each
+		// - Select quickest connection
+		// - Do not keep sockets alive (throw away and only build when needed)
+		// - Max idle time of 60 seconds
+		mco_options = MongoClientOptions.builder()
+						.readPreference(ReadPreference.nearest())
+						.socketKeepAlive(false)
+						.maxConnectionIdleTime(60000)
+						.build();
+		
+		// Quiet status messages that we are not concerned with
+		// These logging messages will be displayed on startup for Settings due to this being defined afterwards
+		// Leave this as such to ensure we have enough output to troubleshoot any database problems without modifying
+		// the code and relaunching
+		l_mongo = Logger.getLogger("org.mongodb.driver");
+		l_mongo.setLevel(Level.SEVERE);
 	}
 	
 	public boolean connect()
 	{
+		boolean b_success = false;
 		lh_dbx.write("Connecting to databases...");
 		
+		//-------------------------------------------------------------------------------------------------------------
+		// Feeds
+		//-------------------------------------------------------------------------------------------------------------
 		try
 		{
-			m_feeds = new Mongo((String)s_settings.map_databaseAuth.get("feeds").get(DatabaseAuth.Properties.location), Integer.parseInt((String)s_settings.map_databaseAuth.get("feeds").get(DatabaseAuth.Properties.port)));
-			db_feeds = m_feeds.getDB((String)s_settings.map_databaseAuth.get("feeds").get(DatabaseAuth.Properties.database));
+			mc_feeds = new MongoClient(
+					s_settings.map_databaseAuth.get("feeds").toServerAddress(), 
+					Arrays.asList(s_settings.map_databaseAuth.get("feeds").toMongoCredential()),
+					mco_options
+					);
+			
+			db_feeds = mc_feeds.getDatabase("feeds");
 		} 
 		catch (Exception e) 
 		{
@@ -62,12 +95,20 @@ public class DatabaseExecutor implements ErrorProne
 		finally 
 		{
 			// Unchecked finally blocks from here down
-			lh_dbx.write("Connected to feeds database");
+			lh_dbx.write("Connected to feeds database");			
 			
+		//-------------------------------------------------------------------------------------------------------------
+		// Entries
+		//-------------------------------------------------------------------------------------------------------------
 			try
-			{
-				m_entries = new Mongo((String)s_settings.map_databaseAuth.get("entries").get(DatabaseAuth.Properties.location), Integer.parseInt((String)s_settings.map_databaseAuth.get("entries").get(DatabaseAuth.Properties.port)));
-				db_entries = m_entries.getDB((String)s_settings.map_databaseAuth.get("entries").get(DatabaseAuth.Properties.database));
+			{				
+				mc_entries = new MongoClient(
+						s_settings.map_databaseAuth.get("entries").toServerAddress(), 
+						Arrays.asList(s_settings.map_databaseAuth.get("entries").toMongoCredential()),
+						mco_options
+						);
+				
+				db_entries = mc_entries.getDatabase("entries");
 			}
 			catch (Exception e) 
 			{
@@ -78,10 +119,18 @@ public class DatabaseExecutor implements ErrorProne
 			{
 				lh_dbx.write("Connected to entries database");
 				
+		//-------------------------------------------------------------------------------------------------------------
+		// Statistics
+		//-------------------------------------------------------------------------------------------------------------				
 				try
-				{
-					m_statistics = new Mongo((String)s_settings.map_databaseAuth.get("statistics").get(DatabaseAuth.Properties.location), Integer.parseInt((String)s_settings.map_databaseAuth.get("statistics").get(DatabaseAuth.Properties.port)));
-					db_statistics = m_statistics.getDB((String)s_settings.map_databaseAuth.get("statistics").get(DatabaseAuth.Properties.database));
+				{					
+					mc_statistics = new MongoClient(
+							s_settings.map_databaseAuth.get("statistics").toServerAddress(), 
+							Arrays.asList(s_settings.map_databaseAuth.get("statistics").toMongoCredential()),
+							mco_options
+							);
+					
+					db_statistics = mc_statistics.getDatabase("statistics");
 				}
 				catch (Exception e) 
 				{
@@ -92,10 +141,18 @@ public class DatabaseExecutor implements ErrorProne
 				{
 					lh_dbx.write("Connected to statistics database");
 					
+		//-------------------------------------------------------------------------------------------------------------
+		// Associations
+		//-------------------------------------------------------------------------------------------------------------
 					try
 					{
-						m_associations = new Mongo((String)s_settings.map_databaseAuth.get("associations").get(DatabaseAuth.Properties.location), Integer.parseInt((String)s_settings.map_databaseAuth.get("associations").get(DatabaseAuth.Properties.port)));
-						db_associations = m_associations.getDB((String)s_settings.map_databaseAuth.get("associations").get(DatabaseAuth.Properties.database));
+						mc_associations = new MongoClient(
+								s_settings.map_databaseAuth.get("associations").toServerAddress(), 
+								Arrays.asList(s_settings.map_databaseAuth.get("associations").toMongoCredential()),
+								mco_options
+								);
+						
+						db_associations = mc_associations.getDatabase("associations");
 					} 
 					catch (Exception e) 
 					{
@@ -105,84 +162,33 @@ public class DatabaseExecutor implements ErrorProne
 					finally 
 					{
 						lh_dbx.write("Connected to associations database");
-						
-						lh_dbx.write("Authenticating...");
-						
-						if(db_feeds.authenticate((String)s_settings.map_databaseAuth.get("feeds").get(DatabaseAuth.Properties.username), ((String)s_settings.map_databaseAuth.get("feeds").get(DatabaseAuth.Properties.password)).toCharArray())) 
-						{
-							lh_dbx.write("Authenticated feeds");
-							
-							if (db_entries.authenticate((String)s_settings.map_databaseAuth.get("entries").get(DatabaseAuth.Properties.username), ((String)s_settings.map_databaseAuth.get("entries").get(DatabaseAuth.Properties.password)).toCharArray()))
-							{
-								lh_dbx.write("Authenticated entries");
-								
-								if(db_statistics.authenticate(
-										(String)s_settings.map_databaseAuth.get("statistics").get(DatabaseAuth.Properties.username), 
-										((String)s_settings.map_databaseAuth.get("statistics").get(DatabaseAuth.Properties.password)).toCharArray()))
-								{
-									lh_dbx.write("Authenticated statistics");
-									
-									if(db_associations.authenticate(
-											(String)s_settings.map_databaseAuth.get("associations").get(DatabaseAuth.Properties.username), 
-											((String)s_settings.map_databaseAuth.get("associations").get(DatabaseAuth.Properties.password)).toCharArray()))
-									{
-										lh_dbx.write("Authenticated associations");
-										lh_dbx.write("Database startup successful");
-										
-										return true;
-									}
-									else 
-									{
-										lh_dbx.write(Entry.Type.Error, "Failed to authorize associations");
-										err_last = new Error("db_entries", Type.Accept, db_entries.getLastError().toString());
-									}
-								}
-								else 
-								{
-									lh_dbx.write(Entry.Type.Error, "Failed to authorize statistics");
-									err_last = new Error("db_entries", Type.Accept, db_entries.getLastError().toString());
-								}
-							} 
-							else 
-							{
-								lh_dbx.write(Entry.Type.Error, "Failed to authorize entries");
-								err_last = new Error("db_entries", Type.Accept, db_entries.getLastError().toString());
-							}
-						} 
-						else 
-						{
-							lh_dbx.write(Entry.Type.Error, "Failed to authorize feeds");
-							err_last = new Error("db_feeds", Type.Accept, db_feeds.getLastError().toString());
-						}
+						lh_dbx.write("Database startup successful");
+						b_success = true;
 					}
 				}
 				
 			}
 		}
 		
-		// Close since we won't be using them :(
-		m_feeds.close();
-		m_entries.close();
-		
-		return false;
+		return b_success;
 	}
 	
 	public ArrayList<Feed> getAllFeeds()
 	{
 		ArrayList<Feed> arr_feed = new ArrayList<Feed>();
-		DBCollection col_feed = db_statistics.getCollectionFromString("feeds");
-		DBCursor cur_feed = col_feed.find();
+		MongoCollection col_feed = db_statistics.getCollection("feeds");
+		MongoCursor cur_feed = ((MongoIterable)col_feed.find()).iterator();
 		
 		while(cur_feed.hasNext())
 		{
-			DBObject dbo_feed = cur_feed.next();
+			Document doc_feed = (Document) cur_feed.next();
 			Feed f_feed = new Feed();
 			
 			for(int i_propertyIndex = 0; i_propertyIndex < Feed.Properties.values().length; i_propertyIndex++)
 			{
-				if(dbo_feed.containsField(Feed.Properties.values()[i_propertyIndex].toString()))
+				if(doc_feed.containsKey(Feed.Properties.values()[i_propertyIndex].toString()))
 				{
-					f_feed.set(Feed.Properties.values()[i_propertyIndex], (String)dbo_feed.get(Feed.Properties.values()[i_propertyIndex].toString()));
+					f_feed.set(Feed.Properties.values()[i_propertyIndex], (String)doc_feed.get(Feed.Properties.values()[i_propertyIndex].toString()));
 				}
 			}
 			
@@ -195,6 +201,4 @@ public class DatabaseExecutor implements ErrorProne
 	public Error getLastError() {
 		return err_last;
 	}
-	
-	
 }
