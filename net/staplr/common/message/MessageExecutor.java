@@ -1,9 +1,12 @@
 package net.staplr.common.message;
 
 import net.staplr.logging.LogHandle;
+
 import java.util.ArrayList;
+
 import FFW.Network.DefaultSocketConnection;
 import net.staplr.common.Settings;
+import net.staplr.common.Worker;
 import net.staplr.logging.Entry;
 import net.staplr.logging.Log;
 import net.staplr.common.Settings.Setting;
@@ -15,16 +18,18 @@ public class MessageExecutor
 	private DefaultSocketConnection sc_client;
 	private Settings s_settings;
 	private LogHandle lh_worker;
+	private Worker w_worker;
 	private ArrayList<Message> msg_inbox;
 	public ArrayList<Message> msg_outbox; // TODO why is this public?
 	
-	public MessageExecutor(DefaultSocketConnection sc_client, LogHandle lh_worker, MessageEnsurer me_ensurer, ArrayList<Message> msg_inbox, ArrayList<Message> msg_outbox, Settings s_settings)
+	public MessageExecutor(DefaultSocketConnection sc_client, LogHandle lh_worker, MessageEnsurer me_ensurer, ArrayList<Message> msg_inbox, ArrayList<Message> msg_outbox, Settings s_settings, Worker w_worker)
 	{
 		this.sc_client = sc_client;
 		this.lh_worker = lh_worker;
 		this.msg_inbox = msg_inbox;
 		this.msg_outbox = msg_outbox;
 		this.s_settings = s_settings;
+		this.w_worker = w_worker;
 	}
 	
 	public void execute(Message msg_message)

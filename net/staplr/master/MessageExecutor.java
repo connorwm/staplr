@@ -18,6 +18,7 @@ import net.staplr.common.Communicator;
 import net.staplr.common.DatabaseAuth.Properties;
 import net.staplr.common.Settings;
 import net.staplr.common.Settings.Setting;
+import net.staplr.common.Worker;
 import net.staplr.common.feed.Feed;
 import net.staplr.common.message.Message;
 import net.staplr.common.message.MessageEnsurer;
@@ -38,13 +39,14 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 	public ArrayList<Message> msg_outbox;
 	private Communicator c_communicator;
 	private Feeds f_feeds;
+	private Worker w_worker;
 	
 	public MessageExecutor(DefaultSocketConnection sc_client, LogHandle lh_worker,
 			MessageEnsurer me_ensurer, ArrayList<Message> msg_inbox,
 			ArrayList<Message> msg_outbox, Settings s_settings,
-			Communicator c_communicator, Feeds f_feeds) 
+			Communicator c_communicator, Feeds f_feeds, Worker w_worker) 
 	{
-		super(sc_client, lh_worker, me_ensurer, msg_inbox, msg_outbox, s_settings);
+		super(sc_client, lh_worker, me_ensurer, msg_inbox, msg_outbox, s_settings, w_worker);
 		
 		this.sc_client = sc_client;
 		this.lh_worker = lh_worker;
@@ -53,6 +55,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 		this.s_settings = s_settings;
 		this.c_communicator = c_communicator;
 		this.f_feeds = f_feeds;
+		this.w_worker = w_worker;
 	}
 	
 	@Override
@@ -364,6 +367,29 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 				{
 					lh_worker.write("No redistribution number given in message");
 					respondInvalid(msg_message);
+				}
+			}
+			
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			//	DISCONNECT
+			//////////////////////////////////////////////////////////////////////////////////////////////////
+			if(msg_message.getValue() == Message.Value.Disconnect)
+			{
+				lh_worker.write("Client has requested disconnect; disconnecting...");
+				w_worker.setExpectDisconnect();
+
+				try
+				{
+					sc_client.close();
+				}
+				catch(Exception excep_disconnect)
+				{
+					lh_worker.write(Entry.Type.Error, "Exception occurred while disconnecting: "+excep_disconnect.toString());
+				}
+
+				if(sc_client.isClosed())
+				{
+					lh_worker.write("Disconnected successfully");
 				}
 			}
 		}
