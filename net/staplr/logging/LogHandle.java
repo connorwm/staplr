@@ -22,4 +22,9 @@ public class LogHandle
 	{
 		l_log.write(new Entry(str_name, Type.Status, str_message));
 	}
+	
+	public Log getLog()
+	{
+		return l_log;
+	}
 }

@@ -171,4 +171,12 @@ public class Log
 			return b_options[option.ordinal()];
 		}
 	}
+	
+	/**Returns the path with filename of the current log file
+	 * @return Log file path
+	 */
+	public String getLogFilePath()
+	{
+		return (str_baseDirectory + str_fileName);
+	}
 }
