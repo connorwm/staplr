@@ -21,6 +21,7 @@ public class Message
 	public enum Value
 	{
 		Authorization,
+		Unauthorized,
 		Accepted,
 		Rejected,
 		Sync,
@@ -289,6 +290,11 @@ public class Message
 	public DateTime getTimeSent()
 	{
 		return dt_timeSent;
+	}
+	
+	public boolean wasSent()
+	{
+		return (dt_timeSent != null);
 	}
 	
 	public DateTime getTimeReceived()
