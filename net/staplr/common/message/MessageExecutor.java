@@ -3,13 +3,12 @@ package net.staplr.common.message;
 import net.staplr.logging.LogHandle;
 
 import java.util.ArrayList;
+import java.util.logging.Logger;
 
 import FFW.Network.DefaultSocketConnection;
 import net.staplr.common.Settings;
 import net.staplr.common.Worker;
 import net.staplr.logging.Entry;
-import net.staplr.logging.Log;
-import net.staplr.common.Settings.Setting;
 import net.staplr.common.message.Message.Type;
 import net.staplr.common.message.Message.Value;
 
@@ -21,6 +20,7 @@ public class MessageExecutor
 	private Worker w_worker;
 	private ArrayList<Message> msg_inbox;
 	public ArrayList<Message> msg_outbox; // TODO why is this public?
+	private boolean b_authorized;
 	
 	public MessageExecutor(DefaultSocketConnection sc_client, LogHandle lh_worker, MessageEnsurer me_ensurer, ArrayList<Message> msg_inbox, ArrayList<Message> msg_outbox, Settings s_settings, Worker w_worker)
 	{
@@ -30,6 +30,8 @@ public class MessageExecutor
 		this.msg_outbox = msg_outbox;
 		this.s_settings = s_settings;
 		this.w_worker = w_worker;
+		
+		b_authorized = false; // Always start without giving the client the ability to do anything but authorize itself
 	}
 	
 	public void execute(Message msg_message)
@@ -116,55 +118,103 @@ public class MessageExecutor
 		}
 		else
 		{
+			// Always send a delivery notice for a successfully received message
 			Message msg_deliveryNotice = new Message(Type.Response, Value.DeliveryNotice);
 			msg_deliveryNotice.addItem("message", msg_message.toString());
 			
 			send(msg_deliveryNotice);
 			
-			// ----------------------------------------------
-			// Message Processing
-			// ----------------------------------------------
-			
-			if(msg_message.getType() == Type.Request)
+			if(b_authorized)
 			{
-				if(msg_message.getValue() == Value.Authorization)
+				// If the client has received authorization by us then we may allow the message to be executed
+				executeAsPer(msg_message);
+			}
+			else
+			{
+				if(msg_message.getType() == Type.Request)
 				{
-					String str_key = (String)msg_message.get("key");
-					lh_worker.write("Received Key: "+str_key);
-					
-					if(str_key.equals(String.valueOf(s_settings.get(Settings.Setting.masterKey))))
+					// If the message is for Authorization then compare the sent key to our key
+					if(msg_message.getValue() == Value.Authorization)
 					{
-						lh_worker.write("Key Accepted");
+						String str_key = (String)msg_message.get("key");
+						lh_worker.write("Received Key: "+str_key);
 						
-						Message msg_accepted = new Message(Type.Response, Value.Accepted);
-						send(msg_accepted);
-						
-						//msg_message.setRespondedTo();
+						// Compare sent key with our key
+						if(str_key.equals(String.valueOf(s_settings.get(Settings.Setting.masterKey))))
+						{
+							lh_worker.write("Key Accepted");
+							
+							// Respond with an Accepted message and set authorized to true
+							Message msg_accepted = new Message(Type.Response, Value.Accepted);
+							send(msg_accepted);
+							
+							b_authorized = true;
+							
+							// If the message was sent then set the original message as being responded to
+							if(msg_accepted.wasSent())
+							{
+								// Mark the message as being responded to
+								msg_message.setRespondedTo();
+							}
+						}
+						else
+						{
+							lh_worker.write("Key Rejected");
+							
+							Message msg_rejected = new Message(Type.Response, Value.Rejected);
+							send(msg_rejected);
+							
+							// If the message was sent then set the original message as being responded to
+							if(msg_rejected.wasSent())
+							{
+								// Mark the message as being responded to
+								msg_message.setRespondedTo();
+							} else {
+								lh_worker.write(Entry.Type.Error, "Failed to notify of key being rejected");
+							}
+						}
 					}
 					else
 					{
-						lh_worker.write("Key Rejected");
-						
-						Message msg_rejected = new Message(Type.Response, Value.Rejected);
-						send(msg_rejected);
-						
-						//msg_message.setRespondedTo();
+							// Client is not authorized to be sending messages
+							// Send back an Unauthorized message
+							Message msg_authNotice = new Message(Type.Response, Value.Unauthorized);
+							send(msg_authNotice);
+							
+							// If the message was sent then set the original message as being responded to
+							if(msg_authNotice.wasSent())
+							{
+								// Mark the message as being responded to
+								msg_message.setRespondedTo();
+							} else {
+								lh_worker.write(Entry.Type.Error, "Failed to notify of being unauthorized");
+							}
 					}
 				}
-				else
+				else if (msg_message.getType() == Type.Response) 
 				{
-					executeAsPer(msg_message);
-				}
-			}
-			else if (msg_message.getType() == Type.Response) 
-			{
-				if(msg_message.getValue() == Value.Accepted)
-				{
-					lh_worker.write("Accepted!");
-				}
-				else
-				{
-					executeAsPer(msg_message);
+					if(msg_message.getValue() == Value.Accepted && !b_authorized)
+					{
+						lh_worker.write("Accepted!");
+						b_authorized = true;
+					}
+					else
+					{
+												
+						// Client is not authorized to be sending messages
+						// Send back an Unauthorized message
+						Message msg_authNotice = new Message(Type.Response, Value.Unauthorized);
+						send(msg_authNotice);
+
+						// If the message was sent then set the original message as being responded to
+						if(msg_authNotice.wasSent())
+						{
+							// Mark the message as being responded to
+							msg_message.setRespondedTo();
+						} else {
+							lh_worker.write(Entry.Type.Error, "Failed to notify of being unauthorized");
+						}
+					}
 				}
 			}
 		}
@@ -179,7 +229,7 @@ public class MessageExecutor
 	}
 	
 	public synchronized void send(Message msg_message)
-	{
+	{		
 		if(sc_client.send(msg_message.toString()))
 		{
 			lh_worker.write("Sent: "+msg_message.toString());
