@@ -124,17 +124,23 @@ public class Worker implements Runnable
 			}
 			else
 			{
-				lh_worker.write("Client no longer connected; shutting down...");
+				lh_worker.write("Client no longer connected: finishing worker thread...");
 				b_run = false;
 				
 				// If a disconnect was unexpected (not requested by client) then handle accordingly
 				if(!b_disconnecting)
 				{
+					lh_worker.write("Client unexpectedly disconnected");
+					
 					// If this Worker was connected to another master then we need to verify it is down from other masters
 					if(t_type == Communicator.Type.Master)
 					{					
 						c_communication.verifyDownMaster(getClientAddress());		
 					}
+				}
+				else
+				{
+					lh_worker.write("Client disconnect expected: no further action needed");
 				}
 			}
 		}
