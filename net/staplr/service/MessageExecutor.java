@@ -210,7 +210,7 @@ public class MessageExecutor extends net.staplr.common.message.MessageExecutor
 			{
 				lh_worker.write("Running garbage collection...");
 				System.gc();
-				lh_worker.write("\tComplete");
+				lh_worker.write("Garbage collection complete");
 			}
 			
 			//////////////////////////////////////////////////////////////////////////////////////////////////
