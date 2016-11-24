@@ -142,8 +142,16 @@ public class Worker implements Runnable
 				{
 					lh_worker.write("Client disconnect expected: no further action needed");
 				}
+				
+				// Finish by cleaning up and removing this closed connection
+				c_communication.cleanupClosedConnection(this);
 			}
 		}
+	}
+	
+	public Communicator.Type getType()
+	{
+		return t_type;
 	}
 	
 	public String getClientAddress()

@@ -68,7 +68,7 @@ public class Communication implements Runnable
 		lh_communication.write("Distributed FeedSync message to "+c_master.getConnectionCount());
 	}
 	
-	/**Sends a message to a fellow master to check and 
+	/**Sends a message to a fellow master to check and confirm if down
 	 * @param str_address - Address of master to confirm if down
 	 */
 	public void verifyDownMaster(String str_address)
@@ -92,11 +92,15 @@ public class Communication implements Runnable
 		}
 	}
 	
-	public void joinMasters()
+	/**Polls masters from database to find one to sync with on startup. Function will loop through the list until an available master is found.
+	 * @return Boolean result as to whether or not joining another master was successful 
+	 */
+	public boolean joinMasters()
 	{
 		MessageExecutor mx_executor = null;
 		Message msg_sync = new Message(Message.Type.Request, Message.Value.Sync);
 		lh_communication.write("Attempting to join masters...");
+		boolean b_result = false;
 		
 		for(int i_masterIndex = 0; i_masterIndex < s_settings.mc_credentials.size(); i_masterIndex++)
 		{
@@ -107,9 +111,50 @@ public class Communication implements Runnable
 			{
 				lh_communication.write("\tConnection established; sending sync request");
 				mx_executor.send(msg_sync);
+				b_result = true;
 				
 				break;
 			}
+		}
+		
+		return b_result;
+	}
+	
+	/**Remove worker after connection has been closed. All follow up for close will be handled separately.
+	 * @param w_worker
+	 */
+	public void cleanupClosedConnection(Worker w_worker)
+	{
+		ArrayList<Worker> arr_workers = null;
+		
+		switch(w_worker.getType())
+		{
+		case Master:
+			arr_workers = c_master.getWorkers();
+			break;
+			
+		case Service:
+			arr_workers = c_service.getWorkers();
+			break;
+		};
+		
+		if(arr_workers != null)
+		{
+			for(int i_workerIndex = 0; i_workerIndex < arr_workers.size(); i_workerIndex++)
+			{
+				// Lookup worker to remove in array by its address
+				if(arr_workers.get(i_workerIndex).getClientAddress() == w_worker.getClientAddress())
+				{
+					arr_workers.remove(i_workerIndex);
+					lh_communication.write("Successfully removed "+w_worker.getType()+" worker for "+w_worker.getClientAddress()+"");
+					
+					break;
+				}
+			}
+		}
+		else
+		{
+			lh_communication.write(Entry.Type.Error, "Unknown Worker type encountered while trying to remove: '"+w_worker.getType().toString()+"'");
 		}
 	}
 	

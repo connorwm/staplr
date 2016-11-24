@@ -97,7 +97,11 @@ public class Master implements Runnable
 
 				s_settings.set(Settings.Setting.masterPort, String.valueOf(new Random().nextInt(65535)));
 				this.run();
-				c_communication.joinMasters();
+				
+				if(!c_communication.joinMasters())
+				{
+					lh_master.write(Type.Error, "Failed to join other masters");
+				}
 			} else {
 				lh_master.write(Type.Error, "Invalid arg[0]: should be join or first");
 			}
