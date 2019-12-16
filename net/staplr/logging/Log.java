@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -52,18 +54,30 @@ public class Log
 		// Server base directory will be dependent on this 
 		String localOS = System.getProperty("os.name").toLowerCase();
 		
-		if(instance == Instance.Client) str_baseDirectory = str_clientBaseDirectory;
+		if(instance == Instance.Client) {
+			// Client runtimes default to the local directory
+			str_baseDirectory = str_clientBaseDirectory;
+		}
 		else 
 		{
-			if(localOS.indexOf("win") >= 0) str_baseDirectory = str_windowsServerBaseDirectory;
-			else if(localOS.indexOf("linux") >= 0) str_baseDirectory = str_linuxServerBaseDirectory;
+			// Check if Windows
+			if(localOS.indexOf("win") >= 0) {
+				str_baseDirectory = str_windowsServerBaseDirectory;
+			}
+			// Check if Linux
+			else if(localOS.indexOf("linux") >= 0) {
+				str_baseDirectory = str_linuxServerBaseDirectory;
+			}
 			else 
 			{
-				str_baseDirectory = "./"; // Indeterminate where else to go so play it safe
+				// Indeterminate where else to go so play it safe
+				str_baseDirectory = "./"; 
 				System.err.println("Indeterminate OS: Will be logging in the current directory");
 			}
 		}
 		
+		
+		// Initiate logging options
 		b_options = new boolean[Options.values().length];
 		b_hasError = false;
 		
@@ -75,6 +89,11 @@ public class Log
 		}
 		
 		str_fileName = "staplr-" + DateTime.now(DateTimeZone.getDefault()).toString("M.d.y") + ".log";
+		
+		
+		// Disable MongoDB driver logging from interfering from our console output
+		Logger lgr_mongoLogger = Logger.getLogger("org.mongodb.driver");
+		lgr_mongoLogger.setLevel(Level.OFF);
 	}
 	
 	/**Writes a given Entry into the log in a thread-safe manner.
