@@ -52,8 +52,6 @@ public class Slave implements Runnable
 	private Log l_main;
 	private DatabaseExecutor dx_executor;
 	
-	private Future<?> ftr_future;
-	
 	public Slave(Feed f_feed, DatabaseExecutor dx_executor, Settings s_settings, Log l_main)
 	{
 		this.f_feed = f_feed;
@@ -643,6 +641,7 @@ public class Slave implements Runnable
 		
 		lh_slave.write("Processing complete");
 	}
+<<<<<<< HEAD
 	
 	/**Given a database's collection name iterator and name determine if the collection exists in the database
 	 * @author connorwm
@@ -681,4 +680,6 @@ public class Slave implements Runnable
 	{
 		return ftr_future;
 	}
+=======
+>>>>>>> 0b8ab133d24070f9dafaeeafc25af7c86e120624
 }
