@@ -183,6 +183,10 @@ public class Communication implements Runnable
 					{
 						lh_communication.write(Entry.Type.Error, "Failed to add all of the feeds from "+(String)map_assignments.keySet().toArray()[i_assignmentIndex]);
 					}
+					else
+					{
+						lh_communication.write("Added "+arr_feeds.size()+" feeds from "+map_assignments.keySet().toArray()[i_assignmentIndex]+" to self");
+					}
 				}
 			}
 			
