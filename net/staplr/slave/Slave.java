@@ -641,7 +641,6 @@ public class Slave implements Runnable
 		
 		lh_slave.write("Processing complete");
 	}
-<<<<<<< HEAD
 	
 	/**Given a database's collection name iterator and name determine if the collection exists in the database
 	 * @author connorwm
@@ -670,16 +669,4 @@ public class Slave implements Runnable
 		
 		return b_found;
 	}
-	
-	public void setFuture(Future<?> ftr_future)
-	{
-		this.ftr_future = ftr_future;
-	}
-	
-	public Future<?> getFuture()
-	{
-		return ftr_future;
-	}
-=======
->>>>>>> 0b8ab133d24070f9dafaeeafc25af7c86e120624
 }
